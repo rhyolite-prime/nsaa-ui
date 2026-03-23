@@ -305,12 +305,7 @@ onMounted(async () => {
           class="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-sm font-medium transition-all"
         />
       </div>
-      <div class="flex gap-2">
-        <button class="flex items-center gap-2 px-5 py-3 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 text-xs font-black uppercase tracking-wider transition-colors">
-          <FunnelIcon class="w-4 h-4" />
-          Filter
-        </button>
-      </div>
+       
     </div>
 
     <!-- Users Table -->

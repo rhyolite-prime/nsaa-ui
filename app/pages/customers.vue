@@ -10,10 +10,11 @@ import {
   DevicePhoneMobileIcon
 } from '@heroicons/vue/24/outline';
 
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
 import type { Customer, CustomerStats } from "~/models";
 import { isEmpty, debounce } from "lodash-es";
 
-const { $toast } = useNuxtApp();
 
 useHead({
   title: 'Customers | NSAA BO'
@@ -61,12 +62,19 @@ const getPaginatedCustomers = async () => {
         paginationParams.upperBound = result.upperBound;
 
     } catch (error) {
-        $toast.error('Unable to fetch customers !');
+        toast.error('Unable to fetch customers !');
     } finally {
         isShimmerLoading.value = false;
     }
 
 }
+
+const onPageChange = async (pageNumber: number) => {
+  filters.pageNo = pageNumber;
+  const filteredQuery = filterQueryParams({ ...route.query, ...filters });
+  router.replace({ name: route.name ?? '', query: filteredQuery });
+  await getPaginatedCustomers();
+};
 
 const getDisplayName = (user: Customer) => {
   const first = user.firstName?.trim();
@@ -113,10 +121,10 @@ const debouncedSearch = debounce(() => {
         <h1 class="text-2xl font-black text-slate-900 tracking-tight">Customer Management</h1>
         <p class="text-slate-500 text-sm font-medium">View and manage your player base.</p>
       </div>
-      <button class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">
+      <!-- <button class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">
         <ArrowDownTrayIcon class="w-4 h-4" />
         Export Base
-      </button>
+      </button> -->
     </div>
 
     <!-- Stats for Customers -->
@@ -169,14 +177,14 @@ const debouncedSearch = debounce(() => {
       <div class="p-6 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center bg-slate-50/20">
         <div class="relative flex-1 w-full">
           <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input type="text" placeholder="Search phone, name or ID..." class="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/10 font-medium" />
+          <input 
+            v-model="filters.query"
+            type="text" 
+            placeholder="Search phone, name or ID..." 
+            class="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 font-medium transition-all" 
+          />
         </div>
-        <div class="flex gap-2 w-full md:w-auto">
-          <button class="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest border border-slate-100 bg-white rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
-            <FunnelIcon class="w-4 h-4" />
-            Segment
-          </button>
-        </div>
+         
       </div>
 
       <div class="overflow-x-auto">
@@ -231,11 +239,16 @@ const debouncedSearch = debounce(() => {
         </table>
       </div>
       
-      <div class="px-8 py-5 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Segment: 12,402 Individuals</span>
-        <div class="flex gap-2">
-           <button class="px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-slate-200 rounded-xl hover:bg-white transition-all shadow-sm">Previous</button>
-           <button class="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm">Next Page</button>
+      <div class="px-8 py-5 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest order-2 sm:order-1">
+          Total Base: {{ paginationParams.totalCount.toLocaleString() }} Customers
+        </span>
+        <div class="order-1 sm:order-2">
+           <Pagination 
+             :current-page="filters.pageNo" 
+             :total-pages="paginationParams.totalPages" 
+             @page-change="onPageChange"
+           />
         </div>
       </div>
     </div>

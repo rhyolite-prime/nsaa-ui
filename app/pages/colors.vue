@@ -9,7 +9,8 @@ import {
 } from '@heroicons/vue/24/outline';
 import type { Colour } from "~/models";
 import { isEmpty, debounce } from "lodash-es";
-const { $toast } = useNuxtApp();
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
 
 useHead({
   title: 'Colours | NSAA BO'
@@ -64,37 +65,30 @@ const getPaginatedColours = async () => {
         paginationParams.upperBound = result.upperBound;
 
     } catch (error) {
-        $toast.error('Unable to fetch colours !');
+        toast.error('Unable to fetch colours !');
     } finally {
         isShimmerLoading.value = false;
     }
 
  }
 
+const isSaving = ref(false);
 
-
-
-const searchQuery = ref('');
-const isModalOpen = ref(false);
+const isDeleteModalOpen = ref(false);
+const colorIdToDelete = ref<string>('');
+const isDeletingColor = ref(false);
 const editingColor = ref<any>(null);
+const isModalOpen = ref(false);
 
 const form = ref({
   name: '',
   code: '',
-  hex_color: '#000000'
-});
-
-const filteredColors = computed(() => {
-  if (!searchQuery.value) return colors.value;
-  return colors.value.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    c.code.toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
+  hexColor: '#000000'
 });
 
 const openAddModal = () => {
   editingColor.value = null;
-  form.value = { name: '', code: '', hex_color: '#000000' };
+  form.value = { name: '', code: '', hexColor: '#000000' };
   isModalOpen.value = true;
 };
 
@@ -108,25 +102,63 @@ const closeModal = () => {
   isModalOpen.value = false;
 };
 
-const saveColor = () => {
-  if (editingColor.value) {
-    const index = colors.value.findIndex(c => c.id === editingColor.value.id);
-    if (index !== -1) {
-      colors.value[index] = { ...editingColor.value, ...form.value };
-    }
-  } else {
-    colors.value.push({
-      id: Date.now(),
-      ...form.value
-    });
+const saveColor = async () => {
+  if (!form.value.name || !form.value.code) {
+    toast.error('Color name and code are required');
+    return;
   }
-  closeModal();
+
+  isSaving.value = true;
+  try {
+    const payload = { ...form.value };
+    
+    if (editingColor.value?.id) {
+      (payload as any).id = editingColor.value.id;
+    }
+
+    let isSuccessful = false;
+    if (editingColor.value) {
+      isSuccessful = await updateColour(payload);
+    } else {
+      isSuccessful = await createColour(payload);
+    }
+
+    if (isSuccessful) {
+      closeModal();
+      toast.success(editingColor.value ? 'Colour updated successfully' : 'Colour created successfully');
+      getPaginatedColours();
+    } else {
+      toast.error('Operation failed');
+    }
+  } catch (error) {
+    console.error(error);
+    toast.error('An error occurred while saving the colour');
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 const deleteColor = (id: string) => {
+  colorIdToDelete.value = id;
+  isDeleteModalOpen.value = true;
+};
 
-  console.log(id);
-
+const confirmDelete = async () => {
+  isDeletingColor.value = true;
+  try {
+    const isSuccessful = await deleteColour({ id: colorIdToDelete.value });
+    if (isSuccessful) {
+      toast.success('Color deleted successfully');
+      getPaginatedColours();
+      isDeleteModalOpen.value = false;
+    } else {
+      toast.error('Failed to delete color');
+    }
+  } catch (error) {
+    toast.error('An error occurred while deleting color');
+  } finally {
+    isDeletingColor.value = false;
+  }
 };
 
 
@@ -171,7 +203,7 @@ const debouncedSearch = debounce(() => {
       <div class="relative flex-1">
         <MagnifyingGlassIcon class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
         <input 
-          v-model="searchQuery"
+          v-model="filters.query"
           type="text" 
           placeholder="Search by name or code..." 
           class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 font-medium text-slate-700 transition-all"
@@ -230,21 +262,28 @@ const debouncedSearch = debounce(() => {
     </div>
 
     <!-- Modal Layout -->
-    <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div class="w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-        <div class="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-          <div>
-            <h2 class="text-xl font-black text-slate-900">{{ editingColor ? 'Edit Color' : 'Add New Color' }}</h2>
-            <p class="text-[13px] text-slate-500 font-medium">Define raffle color attributes</p>
+    <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="closeModal"></div>
+      <div class="relative z-10 w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20 flex flex-col max-h-[90vh]">
+        <!-- Modal Header -->
+        <div class="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50 shrink-0">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-pink-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-pink-100">
+              <SwatchIcon class="w-6 h-6" />
+            </div>
+            <div>
+              <h2 class="text-xl font-black text-slate-900">{{ editingColor ? 'Edit Color' : 'Add New Color' }}</h2>
+              <p class="text-[13px] text-slate-500 font-medium uppercase tracking-wider">Configure raffle color attributes</p>
+            </div>
           </div>
           <button @click="closeModal" class="p-2 hover:bg-white rounded-full transition-colors text-slate-400">
             <XMarkIcon class="w-6 h-6" />
           </button>
         </div>
         
-        <form @submit.prevent="saveColor" class="p-8 space-y-6">
+        <form @submit.prevent="saveColor" class="flex-1 overflow-y-auto p-8 flex flex-col gap-6">
           <div class="space-y-2">
-            <label class="text-[13px] font-black uppercase tracking-widest text-slate-400 ml-1">Color Name</label>
+            <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Color Name</label>
             <input 
               v-model="form.name"
               type="text" 
@@ -256,7 +295,7 @@ const debouncedSearch = debounce(() => {
 
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <label class="text-[13px] font-black uppercase tracking-widest text-slate-400 ml-1">Code</label>
+              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Code</label>
               <input 
                 v-model="form.code"
                 type="text" 
@@ -266,15 +305,15 @@ const debouncedSearch = debounce(() => {
               />
             </div>
             <div class="space-y-2">
-              <label class="text-[13px] font-black uppercase tracking-widest text-slate-400 ml-1">Hex Color</label>
+              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Hex Color</label>
               <div class="flex gap-2">
                 <input 
-                  v-model="form.hex_color"
+                  v-model="form.hexColor"
                   type="color" 
                   class="w-12 h-12 p-1 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer"
                 />
                 <input 
-                  v-model="form.hex_color"
+                  v-model="form.hexColor"
                   type="text" 
                   class="flex-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-red-50 focus:border-red-200 font-mono text-slate-700 transition-all uppercase"
                   required
@@ -283,23 +322,35 @@ const debouncedSearch = debounce(() => {
             </div>
           </div>
 
-          <div class="pt-4 flex gap-3">
+          <!-- Actions -->
+          <div class="p-8 border-t border-slate-50 bg-slate-50/50 flex gap-4 shrink-0 -mx-8 -mb-8 mt-2">
             <button 
               type="button"
               @click="closeModal"
-              class="flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[13px] tracking-widest text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
+              class="flex-1 px-8 py-5 rounded-[24px] font-black uppercase text-[12px] tracking-[0.15em] text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all active:scale-[0.98]"
             >
               Cancel
             </button>
             <button 
               type="submit"
-              class="flex-1 px-6 py-4 rounded-2xl font-black uppercase text-[13px] tracking-widest text-white bg-[#C82323] hover:bg-[#A01D1D] shadow-lg shadow-red-100 transition-all active:scale-95"
-            >
-              {{ editingColor ? 'Update Color' : 'Save Color' }}
+              :disabled="isSaving"
+              class="flex-[1.5] px-8 py-5 rounded-[24px] font-black uppercase text-[12px] tracking-[0.2em] text-white bg-[#C82323] hover:bg-[#A01D1D] shadow-xl shadow-red-100 transition-all active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2">
+              <span v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              {{ isSaving ? 'Saving...' : (editingColor ? 'Edit Color' : 'Save Color') }}
             </button>
           </div>
         </form>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <DeleteConfirmationModal 
+      :is-open="isDeleteModalOpen"
+      :is-deleting="isDeletingColor"
+      title="Delete Color"
+      description="Are you sure you want to delete this color? This action cannot be undone."
+      @close="isDeleteModalOpen = false"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>

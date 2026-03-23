@@ -14,7 +14,8 @@ import {
 import type { Ticket, TicketStats } from "~/models";
 import { isEmpty, debounce } from "lodash-es";
 
-const { $toast } = useNuxtApp();
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
 
 useHead({
   title: 'Tickets | NSAA BO'
@@ -68,6 +69,13 @@ const getPaginatedTickets = async () => {
   
 }
 
+const onPageChange = async (pageNumber: number) => {
+  filters.pageNo = pageNumber;
+  const filteredQuery = filterQueryParams({ ...route.query, ...filters });
+  router.replace({ name: route.name ?? '', query: filteredQuery });
+  await getPaginatedTickets();
+};
+
 
 const getColorBadge = (color: string) => {
   switch (color) {
@@ -105,10 +113,10 @@ const debouncedSearch = debounce(() => {
         <h1 class="text-2xl font-black text-slate-900 tracking-tight">Ticket Explorer</h1>
         <p class="text-slate-500 text-sm font-medium">Real-time entry monitoring.</p>
       </div>
-      <button class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">
+      <!-- <button class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">
         <ArrowDownTrayIcon class="w-4 h-4" />
         Export CSV
-      </button>
+      </button> -->
     </div>
 
     <!-- Stats for Tickets -->
@@ -141,7 +149,6 @@ const debouncedSearch = debounce(() => {
         <div class="text-2xl font-black text-slate-800 tracking-tight">{{ _currency(ticketStats?.totalRevenue) }}</div>
         <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Revenue</div>
       </div>
-
       <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
         <div class="flex justify-between opacity-30 mb-3">
            <TagIcon class="w-5 h-5" />
@@ -159,7 +166,12 @@ const debouncedSearch = debounce(() => {
       <div class="p-6 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center bg-slate-50/30">
         <div class="relative flex-1 w-full">
           <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input type="text" placeholder="Search entries..." class="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/10 font-medium" />
+          <input 
+            v-model="filters.query"
+            type="text" 
+            placeholder="Search entries..." 
+            class="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 font-medium transition-all" 
+          />
         </div>
         <div class="flex gap-2 w-full md:w-auto">
           <button class="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 text-[10px] font-black uppercase tracking-widest border border-slate-100 bg-white rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
@@ -220,11 +232,16 @@ const debouncedSearch = debounce(() => {
         </table>
       </div>
       
-      <div class="px-8 py-5 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Page 1 of 4,923</span>
-        <div class="flex gap-2">
-           <button class="px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-slate-200 rounded-xl hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all" disabled>Prev</button>
-           <button class="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm">Next</button>
+      <div class="px-8 py-5 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest order-2 sm:order-1">
+          Total Base: {{ paginationParams.totalCount.toLocaleString() }} Tickets
+        </span>
+        <div class="order-1 sm:order-2">
+           <Pagination 
+             :current-page="filters.pageNo" 
+             :total-pages="paginationParams.totalPages" 
+             @page-change="onPageChange"
+           />
         </div>
       </div>
     </div>
