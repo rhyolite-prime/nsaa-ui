@@ -19,7 +19,6 @@ import { isEmpty, debounce } from "lodash-es";
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
 
-
 useHead({
   title: 'Raffles | NSAA BO'
 })
@@ -49,10 +48,7 @@ const raffleList = ref<Raffle[]>([]);
 
 const isShimmerLoading = ref(true);
 
-
 const getPaginatedRaffles = async () => {
-
-    isShimmerLoading.value = true;
 
     try {
 
@@ -95,11 +91,13 @@ const debouncedSearch = debounce(() => {
   }, 300); // 300ms delay
 
 
-  watch(() => filters.query, debouncedSearch);
+watch(() => filters.query, debouncedSearch);
+  
   watch(() => filters.status, () => {
     filters.pageNo = 1;
     getPaginatedRaffles();
   });
+  
   watch([() => filters.startDate, () => filters.endDate], () => {
     filters.pageNo = 1;
     getPaginatedRaffles();
@@ -308,112 +306,136 @@ const confirmDelete = async () => {
     </div>
 
     <!-- Raffle Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-      <div v-for="raffle in raffleList" :key="raffle.id" class="bg-white rounded-3xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 group">
-        <div class="p-8">
-          <div class="flex justify-between items-start mb-6">
-            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" :class="getStatusClass(raffle.status)">
-              {{ raffle.status }}
-            </span>
-            <div v-if="raffle.status.toUpperCase() !== 'ACTIVE'" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                @click="openEditModal(raffle)"
-                class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
-                title="Edit Raffle">
-                <PencilIcon class="w-4 h-4" />
-              </button>
-              <button 
-                @click="openDeleteModal(raffle.id)"
-                class="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
-                title="Delete Raffle"
-              >
-                <TrashIcon class="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-          
-          <h3 class="text-xl font-black text-slate-900 mb-1 group-hover:text-primary-700 transition-colors tracking-tight">{{ raffle.name }}</h3>
-          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">{{ raffle.slug }}</p>
-          
-          <div class="grid grid-cols-2 gap-4 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 relative min-h-[400px]">
+      <TransitionGroup 
+        enter-active-class="transition duration-500 ease-out"
+        enter-from-class="transform scale-95 opacity-0"
+        enter-to-class="transform scale-100 opacity-100"
+        leave-active-class="transition duration-300 ease-in"
+        leave-from-class="transform scale-100 opacity-100"
+        leave-to-class="transform scale-95 opacity-0">
+        <!-- Loading State -->
+        <template v-if="isShimmerLoading">
+          <RaffleSkeleton v-for="i in 6" :key="`skeleton-${i}`" />
+        </template>
 
-            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-1">Prize Pool</p>
-              <p class="text-sm font-black text-slate-800 tracking-tight">{{ _currency(raffle.prizePool) }}</p>
-            </div>
-
-            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-1">Entries</p>
-              <p class="text-sm font-black text-slate-800 tracking-tight">{{ toNumber(raffle.totalEntries) }}</p>
-            </div>
-
-          </div>
-
-          <div class="space-y-4">
-            <!-- Dates Section -->
-            <div class="grid grid-cols-1 gap-3">
-              <!-- Starts -->
-              <div v-if="raffle.startsAt" class="flex flex-col gap-1">
-                <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black">Starts</p>
-                <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
-                  <div class="flex items-center gap-1.5">
-                    <CalendarIcon class="w-3.5 h-3.5 opacity-50" />
-                    <span>{{ standardDateFormat(raffle.startsAt) }}</span>
-                  </div>
-                  <div class="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-                    <ClockIcon class="w-3.5 h-3.5 opacity-50" />
-                    <span>{{ rawTimeFormat(raffle.startsAt) }}</span>
-                  </div>
+        <!-- Data State -->
+        <template v-else>
+          <div v-for="raffle in raffleList" :key="raffle.id" class="bg-white rounded-3xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 group">
+            <div class="p-8">
+              <div class="flex justify-between items-start mb-6">
+                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" :class="getStatusClass(raffle.status)">
+                  {{ raffle.status }}
+                </span>
+                <div v-if="raffle.status.toUpperCase() !== 'ACTIVE'" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    @click="openEditModal(raffle)"
+                    class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+                    title="Edit Raffle">
+                    <PencilIcon class="w-4 h-4" />
+                  </button>
+                  <button 
+                    @click="openDeleteModal(raffle.id)"
+                    class="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
+                    title="Delete Raffle">
+                    <TrashIcon class="w-4 h-4" />
+                  </button>
                 </div>
               </div>
+              
+              <h3 class="text-xl font-black text-slate-900 mb-1 group-hover:text-primary-700 transition-colors tracking-tight">{{ raffle.name }}</h3>
+              <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">{{ raffle.slug }}</p>
+              
+              <div class="grid grid-cols-2 gap-4 mb-8">
 
-              <!-- Ends -->
-              <div v-if="raffle.endsAt" class="flex flex-col gap-1">
-                <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black">Ends</p>
-                <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
-                  <div class="flex items-center gap-1.5">
-                    <CalendarIcon class="w-3.5 h-3.5 opacity-50" />
-                    <span>{{ standardDateFormat(raffle.endsAt) }}</span>
-                  </div>
-                  <div class="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-                    <ClockIcon class="w-3.5 h-3.5 opacity-50" />
-                    <span>{{ rawTimeFormat(raffle.endsAt) }}</span>
-                  </div>
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-1">Prize Pool</p>
+                  <p class="text-sm font-black text-slate-800 tracking-tight">{{ _currency(raffle.prizePool) }}</p>
                 </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-1">Entries</p>
+                  <p class="text-sm font-black text-slate-800 tracking-tight">{{ toNumber(raffle.totalEntries) }}</p>
+                </div>
+
               </div>
 
-              <!-- Draw -->
-              <div v-if="raffle.drawTime" class="flex flex-col gap-1">
-                <p class="text-[9px] uppercase tracking-widest text-primary-400 font-black">Final Draw</p>
-                <div class="flex items-center gap-3 text-xs font-bold text-slate-700">
-                  <div class="flex items-center gap-1.5">
-                    <CalendarIcon class="w-3.5 h-3.5 text-primary-500" />
-                    <span>{{ standardDateFormat(raffle.drawTime) }}</span>
+              <div class="space-y-4">
+                <!-- Dates Section -->
+                <div class="grid grid-cols-1 gap-3">
+                  <!-- Starts -->
+                  <div v-if="raffle.startsAt" class="flex flex-col gap-1">
+                    <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black">Starts</p>
+                    <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
+                      <div class="flex items-center gap-1.5">
+                        <CalendarIcon class="w-3.5 h-3.5 opacity-50" />
+                        <span>{{ standardDateFormat(raffle.startsAt) }}</span>
+                      </div>
+                      <div class="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                        <ClockIcon class="w-3.5 h-3.5 opacity-50" />
+                        <span>{{ rawTimeFormat(raffle.startsAt) }}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div class="flex items-center gap-1.5 border-l border-slate-200 pl-3">
-                    <ClockIcon class="w-3.5 h-3.5 text-primary-500" />
-                    <span>{{ rawTimeFormat(raffle.drawTime) }}</span>
+
+                  <!-- Ends -->
+                  <div v-if="raffle.endsAt" class="flex flex-col gap-1">
+                    <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black">Ends</p>
+                    <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
+                      <div class="flex items-center gap-1.5">
+                        <CalendarIcon class="w-3.5 h-3.5 opacity-50" />
+                        <span>{{ standardDateFormat(raffle.endsAt) }}</span>
+                      </div>
+                      <div class="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                        <ClockIcon class="w-3.5 h-3.5 opacity-50" />
+                        <span>{{ rawTimeFormat(raffle.endsAt) }}</span>
+                      </div>
+                    </div>
                   </div>
+
+                  <!-- Draw -->
+                  <div v-if="raffle.drawTime" class="flex flex-col gap-1">
+                    <p class="text-[9px] uppercase tracking-widest text-primary-400 font-black">Final Draw</p>
+                    <div class="flex items-center gap-3 text-xs font-bold text-slate-700">
+                      <div class="flex items-center gap-1.5">
+                        <CalendarIcon class="w-3.5 h-3.5 text-primary-500" />
+                        <span>{{ standardDateFormat(raffle.drawTime) }}</span>
+                      </div>
+                      <div class="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                        <ClockIcon class="w-3.5 h-3.5 text-primary-500" />
+                        <span>{{ rawTimeFormat(raffle.drawTime) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Winner Section -->
+                <div v-if="raffle.winningColour && raffle.status !== 'ACTIVE'" class="flex items-center gap-3 text-xs font-bold text-slate-600 bg-emerald-50 p-2.5 rounded-xl border border-emerald-100/50">
+                  <CheckCircleIcon class="w-4 h-4 text-emerald-500" />
+                  <span>Winner: <span class="uppercase tracking-widest text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded ml-1">{{ raffle.winningColour }}</span></span>
                 </div>
               </div>
             </div>
-
-            <!-- Winner Section -->
-            <div v-if="raffle.winningColour && raffle.status !== 'ACTIVE'" class="flex items-center gap-3 text-xs font-bold text-slate-600 bg-emerald-50 p-2.5 rounded-xl border border-emerald-100/50">
-              <CheckCircleIcon class="w-4 h-4 text-emerald-500" />
-              <span>Winner: <span class="uppercase tracking-widest text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded ml-1">{{ raffle.winningColour }}</span></span>
+            
+            <div class="px-8 py-5 bg-slate-50 border-t border-slate-100 flex justify-between items-center group-hover:bg-primary-50 transition-colors">
+              <NuxtLink :to="`/raffles/${raffle.id}`" class="text-[11px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-800 flex items-center gap-2">
+                 Manage Draw
+                 <ChevronRightIcon class="w-4 h-4" />
+              </NuxtLink>
+              <PlayIcon v-if="raffle.status === 'Active'" class="w-5 h-5 text-secondary animate-pulse" />
             </div>
           </div>
-        </div>
-        
-        <div class="px-8 py-5 bg-slate-50 border-t border-slate-100 flex justify-between items-center group-hover:bg-primary-50 transition-colors">
-          <NuxtLink :to="`/raffles/${raffle.id}`" class="text-[11px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-800 flex items-center gap-2">
-             Manage Draw
-             <ChevronRightIcon class="w-4 h-4" />
-          </NuxtLink>
-          <PlayIcon v-if="raffle.status === 'Active'" class="w-5 h-5 text-secondary animate-pulse" />
-        </div>
-      </div>
+
+          <!-- Empty State (Optional) -->
+          <div v-if="raffleList.length === 0" class="col-span-full py-20 flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-100 border-dashed">
+            <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-4">
+              <TrophyIcon class="w-8 h-8" />
+            </div>
+            <p class="text-slate-500 font-black uppercase tracking-widest text-xs">No Raffles Found</p>
+            <p class="text-slate-400 text-[10px] font-medium mt-1">Try adjusting your filters or search query.</p>
+          </div>
+        </template>
+      </TransitionGroup>
     </div>
 
     <!-- Pagination -->

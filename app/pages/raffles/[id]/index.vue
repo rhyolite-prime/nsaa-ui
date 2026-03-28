@@ -15,6 +15,11 @@ import {
   FingerPrintIcon,
   CommandLineIcon
 } from '@heroicons/vue/24/outline';
+import type { RaffleDrawResponse, Raffle, RaffleDetails, TopTicketHolder } from "~/models";
+
+useHead({
+  title: 'Raffle Draw | NSAA BO'
+})
 
 const route = useRoute();
 const raffleId = route.params.id as string;
@@ -60,28 +65,91 @@ const rngLogs = ref([
 
 const isDrawing = ref(false);
 const drawComplete = ref(false);
-const selectedWinner = ref<any>(null);
+const raffleDrawResponse = ref<RaffleDrawResponse | null>(null);
+const raffleDetails = ref<RaffleDetails | null>(null);
+  const topTicketHolderList = ref<TopTicketHolder[]>([]);
 
 const startDraw = () => {
   isDrawing.value = true;
-  // Simulate heavy draw animation
+    // Simulate heavy draw animation
+
   setTimeout(() => {
     isDrawing.value = false;
     drawComplete.value = true;
-    selectedWinner.value = {
-      name: 'Emmanuel Addo',
-      ticket: '#CHOP-992-881',
-      phone: '+233 24 ••• ••88'
-    };
+    // selectedWinner.value = {
+    //   name: 'Emmanuel Addo',
+    //   ticket: '#CHOP-992-881',
+    //   phone: '+233 24 ••• ••88'
+    // };
   }, 3000);
+
+
 };
 
-const getProgress = computed(() => (raffle.value.soldTickets / raffle.value.totalTickets) * 100);
+const getTopRaffleTicketHolders = async () => {
+    try {
+      const result = await getTopTicketHolders(raffleId);
+      topTicketHolderList.value = result;
+        
+    } catch (error) {
+        console.error('Unable to fetch top ticket holders.');
+    }
+}
+
+const getRaffleInfo = async () => {
+    try {
+      const result = await getRaffleDetails(raffleId);
+      raffleDetails.value = result
+        
+    } catch (error) {
+        console.error('Unable to fetch raffle details.');
+    }
+}
+
+//const getProgress = computed(() => (raffle.value.soldTickets / raffle.value.totalTickets) * 100);
 const revenue = computed(() => raffle.value.soldTickets * raffle.value.ticketPrice);
 
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat('en-GH', { style: 'currency', currency: 'GHS' }).format(val);
 };
+
+const drawStatusDetails = computed(() => {
+  const status = raffleDetails.value?.status?.toUpperCase();
+  
+  if (status === 'COMPLETED') {
+    return {
+      title: 'Draw Status',
+      value: 'COMPLETED',
+      footer: `Ended on ${standardDateFormat(raffleDetails.value?.drawTime)}`,
+      color: 'text-emerald-500'
+    }
+  }
+  
+  if (status === 'ACTIVE') {
+    return {
+      title: 'Drawing Scheduled',
+      value: rawTimeFormat(raffleDetails.value?.drawTime) || '--:--',
+      footer: 'Processing entries...',
+      color: 'text-blue-500'
+    }
+  }
+
+  return {
+    title: 'Drawing In',
+    value: rawTimeFormat(raffleDetails.value?.drawTime) || '--:--',
+    footer: `Scheduled: ${standardDateFormat(raffleDetails.value?.drawTime)}`,
+    color: 'text-slate-400'
+  }
+})
+
+onMounted(async () => {
+    
+    
+    await getTopRaffleTicketHolders();
+    await getRaffleInfo()
+
+});
+  
 </script>
 
 <template>
@@ -94,13 +162,13 @@ const formatCurrency = (val: number) => {
         </NuxtLink>
         <div>
           <div class="flex items-center gap-3 mb-1">
-            <h1 class="text-2xl font-black text-slate-900 tracking-tight">{{ raffle.title }}</h1>
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight">{{ raffleDetails?.name }}</h1>
             <span class="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-widest rounded-full">
-               {{ raffle.status }}
+               {{ raffleDetails?.status }}
             </span>
           </div>
           <p class="text-slate-400 text-sm font-medium flex items-center gap-2">
-            ID: <span class="font-bold text-slate-600 tracking-wider">{{ raffle.id }}</span>
+            Alias: <span class="font-bold text-slate-600 tracking-wider">{{ raffleDetails?.slug }}</span>
           </p>
         </div>
       </div>
@@ -118,9 +186,8 @@ const formatCurrency = (val: number) => {
         <div class="absolute right-0 top-0 p-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500">
           <BanknotesIcon class="w-24 h-24 text-primary" />
         </div>
-        <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Target Pool</p>
-        <h3 class="text-3xl font-black text-slate-900 mb-1 tracking-tighter">{{ formatCurrency(raffle.pool) }}</h3>
-        <p class="text-emerald-500 text-xs font-bold">+12% vs last week</p>
+        <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Prize Pool</p>
+        <h3 class="text-3xl font-black text-slate-900 mb-1 tracking-tighter">{{ _currency(raffleDetails?.prizePool) }}</h3>
       </div>
 
       <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
@@ -128,10 +195,10 @@ const formatCurrency = (val: number) => {
           <TicketIcon class="w-24 h-24 text-secondary" />
         </div>
         <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Tickets Sold</p>
-        <h3 class="text-3xl font-black text-slate-900 mb-1 tracking-tighter">{{ raffle.soldTickets.toLocaleString() }}</h3>
-        <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
+        <h3 class="text-3xl font-black text-slate-900 mb-1 tracking-tighter">{{ raffleDetails?.totalEntries }}</h3>
+        <!-- <div class="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
           <div class="bg-secondary h-full rounded-full transition-all duration-1000" :style="{ width: `${getProgress}%` }"></div>
-        </div>
+        </div> -->
       </div>
 
       <div class="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
@@ -147,9 +214,9 @@ const formatCurrency = (val: number) => {
         <div class="absolute right-0 top-0 p-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500">
           <ClockIcon class="w-24 h-24 text-blue-500" />
         </div>
-        <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Drawing In</p>
-        <h3 class="text-3xl font-black text-slate-900 mb-1 tracking-tighter">04:12:33</h3>
-        <p class="text-slate-400 text-xs font-bold">Scheduled for today 18:00</p>
+        <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{{ drawStatusDetails.title }}</p>
+        <h3 class="text-3xl font-black mb-1 tracking-tighter" :class="drawStatusDetails.color">{{ drawStatusDetails.value }}</h3>
+        <p class="text-slate-400 text-xs font-bold">{{ drawStatusDetails.footer }}</p>
       </div>
     </div>
 
@@ -201,11 +268,11 @@ const formatCurrency = (val: number) => {
                 </div>
                 <div>
                    <p class="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em] mb-4">We have a winner!</p>
-                   <h2 class="text-5xl font-black mb-2 tracking-tighter">{{ selectedWinner.name }}</h2>
-                   <p class="text-2xl font-black text-slate-300 tracking-tight">{{ selectedWinner.ticket }}</p>
+                   <h2 class="text-5xl font-black mb-2 tracking-tighter">{{ raffleDrawResponse?.ultimateWinnerCustomer.name }}</h2>
+                   <p class="text-2xl font-black text-slate-300 tracking-tight">{{ raffleDrawResponse?.winningColourTicketNumber }}</p>
                 </div>
                 <div class="flex flex-col items-center gap-2 text-slate-400 text-sm font-bold uppercase tracking-widest py-4 border-y border-white/10 px-8">
-                   <span>Phone: {{ selectedWinner.phone }}</span>
+                   <span>Phone: {{ raffleDrawResponse?.ultimateWinnerCustomer.msisdn }}</span>
                 </div>
                 <button class="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-xs tracking-widest transition-all hover:bg-slate-100">
                     Process Prize Distribution
@@ -216,8 +283,8 @@ const formatCurrency = (val: number) => {
         <!-- Participants Summary -->
         <div class="bg-white rounded-[40px] border border-slate-100 overflow-hidden shadow-sm">
             <div class="p-8 border-b border-slate-50 flex justify-between items-center">
-                <h3 class="text-lg font-black text-slate-900 tracking-tight">Recent Ticket Holders</h3>
-                <NuxtLink to="/tickets" class="text-sm font-bold text-primary-600 hover:underline">View All Tickets</NuxtLink>
+                <h3 class="text-lg font-black text-slate-900 tracking-tight">Top Ticket Holders</h3>
+                <NuxtLink :to="`/raffles/${raffleId}/tickets`" class="text-sm font-bold text-primary-600 hover:underline">View All Tickets</NuxtLink>
             </div>
             <div class="p-0">
                 <table class="w-full text-left">
@@ -225,23 +292,23 @@ const formatCurrency = (val: number) => {
                         <tr class="bg-slate-50/50">
                             <th class="px-8 py-4 text-[11px] font-black uppercase tracking-wider text-slate-400">Customer</th>
                             <th class="px-8 py-4 text-[11px] font-black uppercase tracking-wider text-slate-400">Ticket No.</th>
-                            <th class="px-8 py-4 text-[11px] font-black uppercase tracking-wider text-slate-400">Status</th>
+                            <th class="px-8 py-4 text-[11px] font-black uppercase tracking-wider text-slate-400">Quantity</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50">
-                        <tr v-for="i in 5" :key="i" class="hover:bg-slate-50/30 transition-colors">
+                        <tr v-for="topTicketHolder in topTicketHolderList" :key="topTicketHolder.msisdn" class="hover:bg-slate-50/30 transition-colors">
                             <td class="px-8 py-5">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 text-xs">JA</div>
+                                    <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 text-xs">N/A</div>
                                     <div>
-                                        <p class="font-bold text-slate-800 text-sm">John Amartey</p>
-                                        <p class="text-[11px] text-slate-400 font-medium">+233 55 ••• ••{{ i }}1</p>
+                                        <p class="font-bold text-slate-800 text-sm">N/A</p>
+                                        <p class="text-[11px] text-slate-400 font-medium">{{ topTicketHolder.msisdn }}</p>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-8 py-5 font-mono text-xs font-bold text-slate-500">#CHOP-921-00{{ i }}</td>
+                            <td class="px-8 py-5 font-mono text-xs font-bold text-slate-500">#{{ topTicketHolder.ticketNumber }}</td>
                             <td class="px-8 py-5">
-                                <span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-lg">Valid</span>
+                                <span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-lg">{{ topTicketHolder.totalTickets }}</span>
                             </td>
                         </tr>
                     </tbody>
@@ -319,9 +386,12 @@ const formatCurrency = (val: number) => {
       <div class="space-y-8">
           <!-- Prize Tiers -->
           <div class="bg-white rounded-[40px] p-8 border border-slate-100 shadow-sm">
-              <h3 class="text-lg font-black text-slate-900 tracking-tight mb-6">Execution Tiers</h3>
+              <h3 class="text-lg font-black text-slate-900 tracking-tight mb-6"> Winners </h3>
               <div class="space-y-6">
-                  <div v-for="tier in raffle.tiers" :key="tier.name" class="flex items-start gap-4 p-4 rounded-3xl bg-slate-50 border border-slate-100">
+                  <div v-if="!raffleDetails?.prizeWinnerTiers?.length" class="text-center py-8">
+                      <p class="text-slate-400 text-sm font-medium">No prize tiers defined.</p>
+                  </div>
+                  <div v-else v-for="tier in raffleDetails.prizeWinnerTiers" :key="tier.name" class="flex items-start gap-4 p-4 rounded-3xl bg-slate-50 border border-slate-100">
                       <div class="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-amber-500 shadow-sm">
                           <TrophyIcon class="w-5 h-5" />
                       </div>
