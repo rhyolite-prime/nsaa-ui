@@ -142,6 +142,30 @@ export interface Raffle extends BaseEntityModel {
     
 }
 
+export interface RaffleDetails extends BaseEntityModel {
+
+    name: string;
+    slug: string;
+    status: string;
+    totalEntries: number;
+    prizePool: string;
+    winningColour: string;
+    startsAt: string;
+    endsAt: string;
+    drawTime: string;
+    createdAt: string;
+    prizeWinnerTiers: PrizeWinnerTier[];
+}
+
+export interface PrizeWinnerTier {
+    amount: number;
+    name: string;
+    winners: number;
+}
+
+
+
+
 export interface User extends BaseEntityModel {
     firstName: string;
     lastName: string;
@@ -152,6 +176,63 @@ export interface User extends BaseEntityModel {
     isAdmin: boolean;
     isActive: boolean;
 }
+
+export interface RaffleWinner extends BaseEntityModel {
+    customerId: string;
+     
+}
+
+
+export interface RaffleDrawResponse extends BaseEntityModel {
+    
+    cashbackRecipients: string;
+    drawCode: string;
+    drawId: string;
+    tier2WinnersCount: string;
+    tier3WinnersCount: string;
+    timestamp: string;
+    totalPrizesDistributed: number;
+    ultimateWinnerCustomer: UltimateWinnerCustomer;
+    ultimateWinnerTicketId: string;
+    winningColour: string;
+    winningColourId: string;
+    winningColourTicketId: string;
+    winningColourTicketNumber: string;
+}
+
+export interface TopTicketHolder {
+    
+    firstName: string;
+    holder: string;
+    lastName: string;
+    msisdn: string;
+    ticketNumber: string;
+    totalTickets: number;
+    
+}
+
+
+
+export interface UltimateWinnerCustomer  {
+    customerId: string;
+    msisdn: string;
+    name: string;
+}
+
+
+
+
+
+export interface RngLogs {
+    rngType: string;
+    seedValue: string;
+    generatedValue: string;
+    metaData: object;
+    generatedAt: string;
+    createdBy: string;
+}
+
+
 
 export interface UserStats {
     totalUsers: number;

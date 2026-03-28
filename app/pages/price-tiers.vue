@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { 
   QueueListIcon, 
-  PlusIcon, 
+  FunnelIcon, 
   PencilIcon, 
   TrashIcon,
   XMarkIcon,
@@ -14,10 +14,12 @@ import {
   XCircleIcon
 } from '@heroicons/vue/24/outline';
 
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
+
 import type { PriceTier } from "~/models";
 import { isEmpty, debounce } from "lodash-es";
 
-const { $toast } = useNuxtApp();
 
 useHead({
   title: 'Price Tiers | NSAA BO'
@@ -49,6 +51,7 @@ const isShimmerLoading = ref(true);
 
 const searchQuery = ref('');
 const isModalOpen = ref(false);
+const isSaving = ref(false);
 const editingTier = ref<any>(null);
 
 const form = ref({
@@ -56,7 +59,7 @@ const form = ref({
   tierLevel: 1,
   description: '',
   prizeAmount: 0,
-  pricePercentage: 0,
+  prizePercentage: 0,
   numberOfWinners: 1,
   isCashBack: false
 });
@@ -77,7 +80,7 @@ const getPaginatedPriceTiers = async () => {
         paginationParams.upperBound = result.upperBound;
 
     } catch (error) {
-        $toast.error('Unable to fetch colours !');
+        toast.error('Unable to fetch prize tiers !');
     } finally {
         isShimmerLoading.value = false;
     }
@@ -93,7 +96,7 @@ const openAddModal = () => {
     tierLevel: priceTierList.value.length + 1, 
     description: '', 
     prizeAmount: 0, 
-    pricePercentage: 0, 
+    prizePercentage: 0, 
     numberOfWinners: 1, 
     isCashBack: false 
   };
@@ -110,9 +113,41 @@ const closeModal = () => {
   isModalOpen.value = false;
 };
 
-const saveTier = () => {
-   
-  closeModal();
+const saveTier = async () => {
+  if (!form.value.tierName || !form.value.description) {
+    toast.error('Tier name and description are required');
+    return;
+  }
+
+  isSaving.value = true;
+  try {
+    const payload = { ...form.value };
+    
+    // Add the ID if we are editing an existing tier
+    if (editingTier.value?.id) {
+      (payload as any).id = editingTier.value.id;
+    }
+
+    let isSuccessful = false;
+    if (editingTier.value) {
+      isSuccessful = await updatePriceTier(payload);
+    } else {
+      isSuccessful = await createPriceTier(payload);
+    }
+
+    if (isSuccessful) {
+      closeModal();
+      toast.success(editingTier.value ? 'Tier updated successfully' : 'Tier created successfully');
+      getPaginatedPriceTiers();
+    } else {
+      toast.error('Operation failed');
+    }
+  } catch (error) {
+    console.error(error);
+    toast.error('An error occurred');
+  } finally {
+    isSaving.value = false;
+  }
 };
 
 const deleteTier = (id: string) => {
@@ -157,27 +192,29 @@ const debouncedSearch = debounce(() => {
         <h1 class="text-2xl font-black text-slate-900 tracking-tight">Price Tiers</h1>
         <p class="text-slate-500 font-medium">Configure prize levels and award distributions</p>
       </div>
-      <button 
+      <!-- <button 
         @click="openAddModal"
         class="flex items-center justify-center gap-2 bg-[#C82323] hover:bg-[#A01D1D] text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-blue-100 transition-all active:scale-95"
       >
         <PlusIcon class="w-5 h-5" />
         Create New Tier
-      </button>
+      </button> -->
     </div>
 
     <!-- Toolbar -->
-    <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
-      <div class="relative max-w-md">
-        <MagnifyingGlassIcon class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+     <div class="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col md:flex-row gap-4">
+      <div class="relative flex-1">
+        <MagnifyingGlassIcon class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
         <input 
-          v-model="searchQuery"
+          v-model="filters.query"
           type="text" 
           placeholder="Search by tier name or description..." 
-          class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 font-medium text-slate-700 transition-all"
+          class="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-sm font-medium transition-all"
         />
       </div>
+       
     </div>
+
 
     <!-- Tiers Table -->
     <div class="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
@@ -329,7 +366,7 @@ const debouncedSearch = debounce(() => {
                 <span class="absolute left-4 top-1/2 -translate-y-1/2 font-black text-emerald-600 text-[13px] tracking-tight">₵</span>
                 <input 
                   v-model="form.prizeAmount"
-                  type="number" 
+                  type="number" step="0.01"
                   class="w-full pl-9 pr-4 py-3 bg-slate-100/50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 font-black text-slate-800 transition-all"
                   required
                 />
@@ -341,8 +378,8 @@ const debouncedSearch = debounce(() => {
               <div class="relative">
                 <span class="absolute right-4 top-1/2 -translate-y-1/2 font-black text-blue-600 text-[13px]">%</span>
                 <input 
-                  v-model="form.pricePercentage"
-                  type="number" 
+                  v-model="form.prizePercentage"
+                  type="number" step="0.01"
                   class="w-full pr-9 pl-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 font-black text-slate-800 transition-all"
                   required
                 />
@@ -388,9 +425,10 @@ const debouncedSearch = debounce(() => {
             </button>
             <button 
               type="submit"
+              :disabled="isSaving"
               class="flex-[1.5] px-8 py-5 rounded-[24px] font-black uppercase text-[12px] tracking-[0.2em] text-white bg-[#C82323] hover:bg-[#A01D1D] shadow-xl shadow-red-100 transition-all active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2">
-          
-              {{ editingTier ? 'Edit Tier' : 'Save Tier' }}
+              <span v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              {{ isSaving ? 'Saving...' : (editingTier ? 'Edit Tier' : 'Save Tier') }}
             </button>
 
           </div>

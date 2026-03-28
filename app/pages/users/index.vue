@@ -305,12 +305,7 @@ onMounted(async () => {
           class="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-sm font-medium transition-all"
         />
       </div>
-      <div class="flex gap-2">
-        <button class="flex items-center gap-2 px-5 py-3 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 text-xs font-black uppercase tracking-wider transition-colors">
-          <FunnelIcon class="w-4 h-4" />
-          Filter
-        </button>
-      </div>
+       
     </div>
 
     <!-- Users Table -->
@@ -464,7 +459,7 @@ onMounted(async () => {
         </div>
 
         <form @submit.prevent="saveUser" class="flex-1 overflow-y-auto p-8 flex flex-col gap-5">
-          <!-- Name row -->
+          <!-- First Name & Last Name -->
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">First Name <span class="text-red-500">*</span></label>
@@ -488,7 +483,7 @@ onMounted(async () => {
             </div>
           </div>
 
-
+          <!-- Username & Email -->
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Username <span class="text-red-500">*</span></label>
@@ -496,7 +491,9 @@ onMounted(async () => {
                 v-model="userForm.username"
                 type="text" 
                 required
-                placeholder="e.g. John" 
+                placeholder="e.g. john_doe"
+                @keydown.space.prevent
+                @input="userForm.username = userForm.username.replace(/\s/g, '')"
                 class="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-sm font-bold text-slate-700 transition-all placeholder:font-medium placeholder:text-slate-400"
               />
             </div>
@@ -512,20 +509,20 @@ onMounted(async () => {
             </div>
           </div>
  
-
+          <!-- Phone & Roles -->
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Phone Number <span class="text-red-500">*</span></label>
               <input 
                 v-model="userForm.phoneNumber" 
-                type="tel" 
+                type="tel"
+                required
                 placeholder="e.g. +233 20 000 0000" 
                 class="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-sm font-bold text-slate-700 transition-all placeholder:font-medium placeholder:text-slate-400"
               />
             </div>
             <div>
-               
-               <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Roles</label>
+              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Roles</label>
               <VueMultiselect
                 v-model="userForm.roles"
                 :options="roleList"
@@ -543,7 +540,6 @@ onMounted(async () => {
                   </span>
                 </template>
               </VueMultiselect>
-
             </div>
           </div>
  
