@@ -224,7 +224,26 @@ const debouncedSearch = debounce(() => {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50">
-            <tr v-for="color in colourList" :key="color.id" class="hover:bg-slate-50/50 transition-colors group">
+            <template v-if="isShimmerLoading">
+              <tr v-for="i in 5" :key="i">
+                <td class="px-6 py-5">
+                  <div class="w-10 h-10 rounded-xl bg-slate-100 shimmer border border-white"></div>
+                </td>
+                <td class="px-6 py-5">
+                  <div class="h-4 w-32 bg-slate-100 rounded-lg shimmer"></div>
+                </td>
+                <td class="px-6 py-5">
+                  <div class="h-6 w-16 bg-slate-50 rounded-lg shimmer"></div>
+                </td>
+                <td class="px-6 py-5 text-right">
+                  <div class="flex justify-end gap-2">
+                    <div class="w-9 h-9 bg-slate-50 rounded-xl shimmer"></div>
+                    <div class="w-9 h-9 bg-slate-50 rounded-xl shimmer"></div>
+                  </div>
+                </td>
+              </tr>
+            </template>
+            <tr v-else v-for="color in colourList" :key="color.id" class="hover:bg-slate-50/50 transition-colors group">
               <td class="px-6 py-5">
                 <div 
                   class="w-10 h-10 rounded-xl shadow-inner border border-white"

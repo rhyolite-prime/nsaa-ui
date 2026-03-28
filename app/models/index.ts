@@ -158,7 +158,6 @@ export interface RaffleDetails extends BaseEntityModel {
 }
 
 export interface PrizeWinnerTier {
-
     amount: number;
     name: string;
     winners: number;

@@ -129,48 +129,60 @@ const debouncedSearch = debounce(() => {
 
     <!-- Stats for Customers -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
-      <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between opacity-30 mb-3">
-           <UserIcon class="w-5 h-5" />
-           <span class="text-[9px] font-black uppercase tracking-widest">Total Customers</span>
+      <template v-if="isShimmerLoading">
+        <div v-for="i in 5" :key="i" class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <div class="flex justify-between items-center mb-4">
+             <div class="w-5 h-5 bg-slate-100 rounded-lg shimmer"></div>
+             <div class="w-20 h-2 bg-slate-50 rounded shimmer"></div>
+          </div>
+          <div class="h-8 w-2/3 bg-slate-100 rounded-xl shimmer mb-2"></div>
+          <div class="h-3 w-1/2 bg-slate-50 rounded shimmer"></div>
         </div>
-        <div class="text-2xl font-black text-slate-800 tracking-tight">{{ customerStats?.totalCustomers }}</div>
-        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Customers</div>
-      </div>
-       <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between opacity-30 mb-3">
-           <UserIcon class="w-5 h-5" />
-           <span class="text-[9px] font-black uppercase tracking-widest">Active Customers</span>
-        </div>
-        <div class="text-2xl font-black text-slate-800 tracking-tight">{{ customerStats?.activeCustomers }}</div>
-        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Active Customers</div>
-      </div>
-      <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between opacity-30 mb-3">
-           <TrophyIcon class="w-5 h-5" />
-           <span class="text-[9px] font-black uppercase tracking-widest">Total Wins</span>
-        </div>
-        <div class="text-2xl font-black text-slate-800 tracking-tight"> {{ customerStats?.totalWins }}</div>
-        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Wins</div>
-      </div>
-      <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between opacity-30 mb-3">
-           <BanknotesIcon class="w-5 h-5" />
-           <span class="text-[9px] font-black uppercase tracking-widest">Total Spent</span>
-        </div>
-        <div class="text-2xl font-black text-slate-800 tracking-tight">GHS {{ _currency(customerStats?.totalSpent) }}</div>
-        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Spent</div>
-      </div>
+      </template>
 
-      <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-        <div class="flex justify-between opacity-30 mb-3">
-           <BanknotesIcon class="w-5 h-5" />
-           <span class="text-[9px] font-black uppercase tracking-widest">Total Won</span>
+      <template v-else>
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div class="flex justify-between opacity-30 mb-3">
+            <UserIcon class="w-5 h-5" />
+            <span class="text-[9px] font-black uppercase tracking-widest">Total Customers</span>
+          </div>
+          <div class="text-2xl font-black text-slate-800 tracking-tight">{{ customerStats?.totalCustomers }}</div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Customers</div>
         </div>
-        <div class="text-2xl font-black text-slate-800 tracking-tight">GHS {{ _currency(customerStats?.totalWon) }}</div>
-        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Won</div>
-      </div>
-       
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div class="flex justify-between opacity-30 mb-3">
+            <UserIcon class="w-5 h-5" />
+            <span class="text-[9px] font-black uppercase tracking-widest">Active Customers</span>
+          </div>
+          <div class="text-2xl font-black text-slate-800 tracking-tight">{{ customerStats?.activeCustomers }}</div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Active Customers</div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div class="flex justify-between opacity-30 mb-3">
+            <TrophyIcon class="w-5 h-5" />
+            <span class="text-[9px] font-black uppercase tracking-widest">Total Wins</span>
+          </div>
+          <div class="text-2xl font-black text-slate-800 tracking-tight"> {{ customerStats?.totalWins }}</div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Wins</div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div class="flex justify-between opacity-30 mb-3">
+            <BanknotesIcon class="w-5 h-5" />
+            <span class="text-[9px] font-black uppercase tracking-widest">Total Spent</span>
+          </div>
+          <div class="text-2xl font-black text-slate-800 tracking-tight">GHS {{ _currency(customerStats?.totalSpent) }}</div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Spent</div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div class="flex justify-between opacity-30 mb-3">
+            <BanknotesIcon class="w-5 h-5" />
+            <span class="text-[9px] font-black uppercase tracking-widest">Total Won</span>
+          </div>
+          <div class="text-2xl font-black text-slate-800 tracking-tight">GHS {{ _currency(customerStats?.totalWon) }}</div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Won</div>
+        </div>
+      </template>
     </div>
 
     <div class="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
@@ -200,7 +212,25 @@ const debouncedSearch = debounce(() => {
             </tr>
           </thead>
           <tbody class="text-sm divide-y divide-slate-50 text-slate-600">
-            <tr v-for="user in customerList" :key="user.msisdn" class="hover:bg-slate-50/50 transition-colors group">
+            <template v-if="isShimmerLoading">
+               <tr v-for="i in 5" :key="i">
+                <td class="px-8 py-6">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 shimmer"></div>
+                    <div>
+                      <div class="h-4 w-32 bg-slate-100 rounded shimmer mb-1"></div>
+                      <div class="h-2 w-20 bg-slate-50 rounded shimmer"></div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-8 py-6"><div class="h-3 w-28 bg-slate-50 rounded shimmer"></div></td>
+                <td class="px-8 py-6"><div class="h-4 w-8 bg-slate-100 rounded shimmer mx-auto"></div></td>
+                <td class="px-8 py-6 text-center"><div class="h-6 w-16 bg-slate-50 rounded-lg shimmer mx-auto"></div></td>
+                <td class="px-8 py-6 text-center"><div class="h-6 w-20 rounded-full bg-slate-50 shimmer mx-auto"></div></td>
+                <td class="px-8 py-6 text-right"><div class="h-4 w-12 bg-slate-50 rounded shimmer ml-auto"></div></td>
+              </tr>
+            </template>
+            <tr v-else v-for="user in customerList" :key="user.msisdn" class="hover:bg-slate-50/50 transition-colors group">
               <td class="px-8 py-6">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-primary-900 group-hover:text-white transition-all transform group-hover:rotate-6">
