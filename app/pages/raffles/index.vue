@@ -487,7 +487,7 @@ const confirmDelete = async () => {
             </div>
             
             <div class="space-y-2">
-              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Target Prize Pool <span class="text-red-500">*</span></label>
+              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-3">Target Prize Pool <span class="text-red-500">*</span></label>
               <div class="relative">
                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">GHS</span>
                 <input 

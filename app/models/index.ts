@@ -155,6 +155,49 @@ export interface RaffleDetails extends BaseEntityModel {
     drawTime: string;
     createdAt: string;
     prizeWinnerTiers: PrizeWinnerTier[];
+    draw: Draw;
+    drawSummary: DrawSummary;
+}
+
+export interface DrawSummary {
+    drawId: string;
+    generatedValue: string;
+    id: string;
+    metadata: DrawSummaryMetaData;
+    rngType: string;
+}
+
+
+export interface DrawSummaryMetaData {
+
+    cashbackRecipients: number;
+    drawCode: string;
+    drawId: string;
+    tier2WinnersCount: number;
+    tier3WinnersCount: number;
+    id: string;
+    timestamp: string;
+    totalPrizesDistributed: string;
+    ultimateWinnerCustomer: UltimateWinnerCustomer;
+    ultimateWinnerTicketId: string;
+    winningColour: string;
+    winningColourId: string;
+    winningColourTicketId: string;
+    winningColourTicketNumber: string;
+    
+}
+
+export interface Draw {
+    alias: string;
+    completedAt: string;
+    createdAt: string;
+    drawCode: string;
+    drawDate: string;
+    id: string;
+    raffleId: string;
+    status: string;
+    winningColour: string;
+    winningColourId: string;
 }
 
 export interface PrizeWinnerTier {
@@ -162,8 +205,6 @@ export interface PrizeWinnerTier {
     name: string;
     winners: number;
 }
-
-
 
 
 export interface User extends BaseEntityModel {
@@ -200,6 +241,13 @@ export interface RaffleDrawResponse extends BaseEntityModel {
     winningColourTicketNumber: string;
 }
 
+
+export interface TopTicketHoldersResponse {
+    
+    data: TopTicketHolder[];
+    totalValidEntries: number;
+}
+
 export interface TopTicketHolder {
     
     firstName: string;
@@ -208,10 +256,7 @@ export interface TopTicketHolder {
     msisdn: string;
     ticketNumber: string;
     totalTickets: number;
-    
 }
-
-
 
 export interface UltimateWinnerCustomer  {
     customerId: string;
@@ -223,13 +268,13 @@ export interface UltimateWinnerCustomer  {
 
 
 
-export interface RngLogs {
+export interface RngLog extends BaseEntityModel {
+    drawId: string;
+    generatedAt: string;
+    generatedValue: string;
+    metadata: any;
     rngType: string;
     seedValue: string;
-    generatedValue: string;
-    metaData: object;
-    generatedAt: string;
-    createdBy: string;
 }
 
 
