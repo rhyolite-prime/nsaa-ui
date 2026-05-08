@@ -294,3 +294,53 @@ export interface Permission {
     systemName: string;
     displayName: string;
 }
+
+export interface AffiliatePartner extends BaseEntityModel {
+    name: string;
+    identifier: string;
+    contactName: string;
+    contactEmail: string;
+    contactPhone: string;
+    billingEmail: string;
+    country: string;
+    currency: string;
+    status: string;
+    ussdCode: string;
+    wssdServiceUrl?: string;
+    subAccountEnabled: boolean;
+    requireTwoFactorAuth: boolean;
+    organizationLogo?: string;
+    commissionRate: number;
+    commissionType: 'percentage' | 'fixed';
+    paymentDueDate?: number;
+    minimumPayoutThreshold: number;
+    paymentMethod?: string;
+    bankDetails?: any;
+    maxRafflesPerDay?: number;
+    allowedRaffleCategories?: string[];
+    requiresApproval: boolean;
+    totalTicketsSold?: number;
+    totalRevenueGenerated?: number;
+    totalCommissionEarned?: number;
+    lastPayoutDate?: string;
+    apiKey?: string;
+    apiSecret?: string;
+    ipWhitelist?: string[];
+    webhookSecret?: string;
+    taxId?: string;
+    legalEntityName?: string;
+    kycVerified: boolean;
+    agreementAcceptedAt?: string;
+    agreementVersion?: string;
+    supportPriority: string;
+    notes?: string;
+    updatedAt?: string;
+}
+
+
+export interface PartnerStats {
+    activeStatus: number;
+    complianceRate: number;
+    totalEarned: number;
+    verifiedPartners: number;
+}

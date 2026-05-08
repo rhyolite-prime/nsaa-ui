@@ -11,16 +11,20 @@ import {
   SwatchIcon,
   QueueListIcon,
   ChevronDownIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  BuildingOfficeIcon
 } from '@heroicons/vue/24/outline';
+
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Squares2X2Icon },
+  { name: 'Colors', href: '/colors', icon: SwatchIcon },
+  { name: 'Price Tiers', href: '/price-tiers', icon: QueueListIcon },
   { name: 'Raffles', href: '/raffles', icon: TrophyIcon },
   { name: 'Tickets', href: '/tickets', icon: TicketIcon },
   { name: 'Customers', href: '/customers', icon: UsersIcon },
-  { name: 'Colors', href: '/colors', icon: SwatchIcon },
-  { name: 'Price Tiers', href: '/price-tiers', icon: QueueListIcon },
+  { name: 'Affiliate Partners', href: '/partners', icon: BuildingOfficeIcon },
+
   { name: 'Winners', href: '/winners', icon: TrophyIcon },
   { name: 'Disbursements', href: '/disbursements', icon: CreditCardIcon },
   { 
