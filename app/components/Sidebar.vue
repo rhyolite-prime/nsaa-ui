@@ -12,7 +12,16 @@ import {
   QueueListIcon,
   ChevronDownIcon,
   UserGroupIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  UserPlusIcon,
+  CheckBadgeIcon,
+  DocumentTextIcon,
+  PhotoIcon,
+  RectangleGroupIcon,
+  GiftIcon,
+  QuestionMarkCircleIcon,
+  FolderIcon,
+  ChatBubbleLeftIcon
 } from '@heroicons/vue/24/outline';
 
 
@@ -23,8 +32,14 @@ const navigation = [
   { name: 'Raffles', href: '/raffles', icon: TrophyIcon },
   { name: 'Tickets', href: '/tickets', icon: TicketIcon },
   { name: 'Customers', href: '/customers', icon: UsersIcon },
-  { name: 'Affiliate Partners', href: '/partners', icon: BuildingOfficeIcon },
-
+  { 
+    name: 'Affiliate Partners', 
+    icon: BuildingOfficeIcon,
+    children: [
+      { name: 'Applicants', href: '/partners/applicants', icon: UserPlusIcon },
+      { name: 'Approved Partners', href: '/partners', icon: CheckBadgeIcon },
+    ]
+  },
   { name: 'Winners', href: '/winners', icon: TrophyIcon },
   { name: 'Disbursements', href: '/disbursements', icon: CreditCardIcon },
   { 
@@ -33,6 +48,18 @@ const navigation = [
     children: [
       { name: 'Roles', href: '/users/roles', icon: UserGroupIcon },
       { name: 'Users', href: '/users', icon: UsersIcon },
+    ]
+  },
+  { 
+    name: 'CMS', 
+    icon: DocumentTextIcon,
+    children: [
+      { name: 'Sliders', href: '/cms/sliders', icon: PhotoIcon },
+      { name: 'Banners', href: '/cms/banners', icon: RectangleGroupIcon },
+      //{ name: 'Prizes', href: '/cms/prizes', icon: GiftIcon },
+      { name: 'FAQs', href: '/cms/faqs', icon: QuestionMarkCircleIcon },
+      { name: 'Media Library', href: '/cms/media-library', icon: FolderIcon },
+      { name: 'Support Tickets', href: '/cms/support-tickets', icon: ChatBubbleLeftIcon },
     ]
   },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },

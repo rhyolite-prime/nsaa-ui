@@ -140,12 +140,13 @@ const openAddModal = () => {
     ussdCode: '',
     wssdServiceUrl: '',
     commissionRate: 0,
+    regonOrState: '',
     commissionType: 'percentage',
     minimumPayoutThreshold: 100,
     paymentDueDate: 7,
     paymentMethod: 'Mobile Money',
     bankDetails: { accountName: '', accountNumber: '', bankName: '', branch: '' },
-    maxRafflesPerDay: 5,
+    maxRafflesPerWeek: 5,
     allowedRaffleCategories: [],
     requiresApproval: true,
     subAccountEnabled: true,
@@ -526,6 +527,7 @@ const toggleCategory = (cat: string) => {
                     <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Tax Identification (TIN/VAT)</label>
                     <input v-model="form.taxId" type="text" placeholder="e.g. GHA-123456-7" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-primary-500/10 font-bold text-slate-800 transition-all shadow-sm" />
                   </div>
+
                   <div class="space-y-2">
                     <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Operating Country</label>
                     <div class="relative">
@@ -533,6 +535,15 @@ const toggleCategory = (cat: string) => {
                       <input v-model="form.country" type="text" class="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-primary-500/10 font-bold text-slate-800 transition-all shadow-sm" />
                     </div>
                   </div>
+
+                  <div class="space-y-2">
+                    <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Region/State</label>
+                    <div class="relative">
+                      <GlobeAsiaAustraliaIcon class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                      <input v-model="form.regonOrState" type="text" class="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-primary-500/10 font-bold text-slate-800 transition-all shadow-sm" />
+                    </div>
+                  </div>
+
                   <div class="space-y-2">
                     <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Primary Currency</label>
                     <select v-model="form.currency" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-primary-500/10 font-bold text-slate-800 transition-all shadow-sm appearance-none">
@@ -666,8 +677,8 @@ const toggleCategory = (cat: string) => {
               <div v-if="currentStep === 4" class="space-y-8 animate-in slide-in-from-right-4 duration-300">
                 <div class="grid grid-cols-2 gap-8">
                   <div class="space-y-2">
-                    <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Max Raffles Per Day</label>
-                    <input v-model="form.maxRafflesPerDay" type="number" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-primary-500/10 font-bold text-slate-800 transition-all shadow-sm" />
+                    <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Max Raffles Per Week</label>
+                    <input v-model="form.maxRafflesPerWeek" type="number" class="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-primary-500/10 font-bold text-slate-800 transition-all shadow-sm" />
                   </div>
                   <div class="space-y-2">
                     <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Support Priority Level</label>
@@ -679,32 +690,8 @@ const toggleCategory = (cat: string) => {
                   </div>
                 </div>
 
-                <div class="space-y-4">
-                  <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500">Permitted Raffle Categories</label>
-                  <div class="flex flex-wrap gap-3">
-                    <button 
-                      v-for="cat in categories" :key="cat"
-                      type="button"
-                      @click="toggleCategory(cat)"
-                      class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all"
-                      :class="[form.allowedRaffleCategories?.includes(cat) ? 'bg-primary-900 border-primary-900 text-white shadow-md' : 'bg-white border-slate-200 text-slate-400 hover:border-primary-500 hover:text-primary-600']"
-                    >
-                      {{ cat }}
-                    </button>
-                  </div>
-                </div>
 
                 <div class="grid grid-cols-2 gap-6">
-                  <div class="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between">
-                    <div>
-                      <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest">Raffle Approval</h4>
-                      <p class="text-[9px] font-bold text-slate-400 mt-1">Manual review of every created raffle</p>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                      <input v-model="form.requiresApproval" type="checkbox" class="sr-only peer">
-                      <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                    </label>
-                  </div>
 
                   <div class="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between">
                     <div>
