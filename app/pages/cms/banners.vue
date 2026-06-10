@@ -445,6 +445,7 @@ const formatDate = (dateString: string) => {
                       class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400"
                     />
                   </div>
+
                   <div class="space-y-2">
                     <label class="text-xs font-bold uppercase tracking-widest text-slate-500">CTA Link</label>
                     <input 
@@ -455,6 +456,19 @@ const formatDate = (dateString: string) => {
                       class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400"
                     />
                   </div>
+
+                  <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-widest text-slate-500"> Position</label>
+                    <input 
+                      v-model="form.cta_link" 
+                      type="text" 
+                      maxlength="500"
+                      placeholder="e.g. /promotions/summer"
+                      class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                    />
+                  </div>
+
+
                 </div>
               </div>
             </div>

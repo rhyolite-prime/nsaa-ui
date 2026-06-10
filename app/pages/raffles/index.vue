@@ -8,6 +8,7 @@ import {
   PlayIcon,
   CheckCircleIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
   XMarkIcon,
   PencilIcon,
   TrashIcon,
@@ -109,92 +110,9 @@ watch(() => filters.query, debouncedSearch);
     }
     
     await getPaginatedRaffles();
-
   });
 
-// Modal Logic
-const isModalOpen = ref(false);
-const isSaving = ref(false);
-const editingRaffle = ref<Raffle | null>(null);
-
-const form = ref({
-  name: '',
-  slug: '',
-  prizePool: 0,
-  startTime: '',
-  endTime: '',
-  drawTime: ''
-});
-
-const openAddModal = () => {
-  editingRaffle.value = null;
-  form.value = {
-    name: '',
-    slug: '',
-    prizePool: 0,
-    startTime: '',
-    endTime: '',
-    drawTime: ''
-  };
-  isModalOpen.value = true;
-};
-
-const openEditModal = (raffle: Raffle) => {
-  editingRaffle.value = raffle;
-  form.value = {
-    name: raffle.name,
-    slug: raffle.slug,
-    prizePool: parseFloat(raffle.prizePool || '0'),
-    startTime: raffle.startsAt ? new Date(raffle.startsAt).toISOString().slice(0, 16) : '',
-    endTime: raffle.endsAt ? new Date(raffle.endsAt).toISOString().slice(0, 16) : '',
-    drawTime: raffle.drawTime ? new Date(raffle.drawTime).toISOString().slice(0, 16) : ''
-  };
-  isModalOpen.value = true;
-};
-
-// Automate Slug generation
-watch(() => form.value.name, (newName) => {
-  if (newName) {
-    form.value.slug = newName.toLowerCase().trim().replace(/\s+/g, '-');
-  } else {
-    form.value.slug = '';
-  }
-});
-
-const closeModal = () => {
-  isModalOpen.value = false;
-};
-
-const saveRaffleData = async () => {
-  if (!form.value.name || !form.value.slug || !form.value.startTime || !form.value.endTime || !form.value.drawTime) {
-    toast.error('All fields are required');
-    return;
-  }
-
-  isSaving.value = true;
-  try {
-     
-
-    let isSuccessful = false;
-    if (editingRaffle.value) {
-      isSuccessful = await updateRaffle({ ...form.value, id: editingRaffle.value.id  });
-    } else {
-      isSuccessful = await createRaffle(form.value);
-    }
-
-    if (isSuccessful) {
-      toast.success(editingRaffle.value ? 'Raffle updated successfully' : 'Raffle created successfully');
-      closeModal();
-      getPaginatedRaffles();
-    } else {
-      toast.error('Operation failed');
-    }
-  } catch (error) {
-    toast.error('An error occurred while saving the raffle');
-  } finally {
-    isSaving.value = false;
-  }
-};
+// Modal logic removed.
 
 const isDeleteModalOpen = ref(false);
 const raffleIdToDelete = ref<string>('');
@@ -233,13 +151,13 @@ const confirmDelete = async () => {
         <h1 class="text-2xl font-black text-slate-900 tracking-tight">Raffle Campaigns</h1>
         <p class="text-slate-500 text-sm font-medium">Manage and monitor draws.</p>
       </div>
-      <button 
-        @click="openAddModal"
+      <NuxtLink 
+        to="/raffles/create"
         class="flex items-center gap-2 bg-[#C82323] hover:bg-[#A01D1D] text-white px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest transition-all hover:shadow-xl shadow-red-100 active:scale-95"
       >
         <PlusIcon class="w-5 h-5 stroke-2" />
         New Raffle
-      </button>
+      </NuxtLink>
     </div>
 
     <!-- Filters & Search -->
@@ -328,12 +246,12 @@ const confirmDelete = async () => {
                   {{ raffle.status }}
                 </span>
                 <div v-if="raffle.status.toUpperCase() !== 'ACTIVE'" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    @click="openEditModal(raffle)"
-                    class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
+                  <NuxtLink 
+                    :to="`/raffles/${raffle.id}/edit`"
+                    class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors inline-block"
                     title="Edit Raffle">
                     <PencilIcon class="w-4 h-4" />
-                  </button>
+                  </NuxtLink>
                   <button 
                     @click="openDeleteModal(raffle.id)"
                     class="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
@@ -452,120 +370,7 @@ const confirmDelete = async () => {
       </div>
     </div>
 
-    <!-- Create/Update Modal -->
-    <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="closeModal"></div>
-      <div class="relative z-10 w-full max-w-2xl bg-white rounded-[40px] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20 flex flex-col max-h-[90vh]">
-        <!-- Modal Header -->
-        <div class="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50 shrink-0">
-          <div class="flex items-center gap-4">
-            <div class="w-12 h-12 bg-pink-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-pink-100">
-              <TrophyIcon class="w-6 h-6" />
-            </div>
-            <div>
-              <h2 class="text-xl font-black text-slate-900 tracking-tight">{{ editingRaffle ? 'Edit Raffle Campaign' : 'Initialize New Raffle' }}</h2>
-              <p class="text-[13px] text-slate-500 font-medium uppercase tracking-wider">Configure campaign timeline and metadata</p>
-            </div>
-          </div>
-          <button @click="closeModal" class="p-2 hover:bg-white rounded-full transition-colors text-slate-400">
-            <XMarkIcon class="w-6 h-6" />
-          </button>
-        </div>
-
-        <form @submit.prevent="saveRaffleData" class="flex-1 overflow-y-auto p-8 flex flex-col gap-6">
-          <!-- Basic Info -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div class="space-y-2">
-              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Campaign Name <span class="text-red-500">*</span></label>
-              <input 
-                v-model="form.name"
-                type="text" 
-                required
-                placeholder="e.g. Mabango Grand Raffle" 
-                class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-sm font-bold text-slate-700 transition-all placeholder:text-slate-300"
-              />
-            </div>
-            
-            <div class="space-y-2">
-              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-3">Target Prize Pool <span class="text-red-500">*</span></label>
-              <div class="relative">
-                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">GHS</span>
-                <input 
-                  v-model="form.prizePool"
-                  type="number" 
-                  step="0.01"
-                  required
-                  placeholder="0.00" 
-                  class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-sm font-bold text-slate-700 transition-all placeholder:text-slate-300"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Timeline -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div class="space-y-2">
-              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2 whitespace-nowrap">Sale Start <span class="text-red-500">*</span></label>
-              <input 
-                v-model="form.startTime"
-                type="datetime-local" 
-                required
-                class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-[13px] font-bold text-slate-700"
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2 whitespace-nowrap">Sale End <span class="text-red-500">*</span></label>
-              <input 
-                v-model="form.endTime"
-                type="datetime-local" 
-                required
-                class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-[13px] font-bold text-slate-700"
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2 whitespace-nowrap text-secondary font-black">Final Draw <span class="text-red-500">*</span></label>
-              <input 
-                v-model="form.drawTime"
-                type="datetime-local" 
-                required
-                class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-secondary/5 focus:border-secondary text-[13px] font-bold text-slate-700"
-              />
-            </div>
-          </div>
-
-          <!-- Note at the bottom -->
-          <div class="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 flex items-start gap-3">
-            <div class="w-5 h-5 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-              </svg>
-            </div>
-            <p class="text-[11px] text-blue-700 font-medium leading-relaxed">
-              <span class="font-black uppercase tracking-wider text-[10px] block mb-0.5">Prize Availability</span>
-              The prize pool amount entered reflects the total prize value currently available to be won by participants in this campaign.
-            </p>
-          </div>
-
-          <!-- Actions -->
-          <div class="p-8 border-t border-slate-50 bg-slate-50/50 flex gap-4 shrink-0 -mx-8 -mb-8 mt-2">
-            <button 
-              type="button"
-              @click="closeModal"
-              class="flex-1 px-8 py-5 rounded-[24px] font-black uppercase text-[12px] tracking-[0.15em] text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all active:scale-[0.98]"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit"
-              :disabled="isSaving"
-              class="flex-[1.5] px-8 py-5 rounded-[24px] font-black uppercase text-[12px] tracking-[0.2em] text-white bg-[#C82323] hover:bg-[#A01D1D] shadow-xl shadow-red-100 transition-all active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2">
-              <span v-if="isSaving" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              {{ isSaving ? 'Saving...' : (editingRaffle ? 'Edit Campaign' : 'Initialize Raffle') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <!-- Create/Update Modal moved to pages -->
 
     <!-- Delete Confirmation Modal -->
     <DeleteConfirmationModal 

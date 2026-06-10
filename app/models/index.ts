@@ -139,7 +139,7 @@ export interface Raffle extends BaseEntityModel {
     endsAt: string;
     drawTime: string;
     createdAt: string;
-    
+    exemptedPartners?: string[];
 }
 
 export interface RaffleDetails extends BaseEntityModel {
@@ -157,6 +157,7 @@ export interface RaffleDetails extends BaseEntityModel {
     prizeWinnerTiers: PrizeWinnerTier[];
     draw: Draw;
     drawSummary: DrawSummary;
+    exemptedPartners?: string[];
 }
 
 export interface DrawSummary {
@@ -343,4 +344,31 @@ export interface PartnerStats {
     complianceRate: number;
     totalEarned: number;
     verifiedPartners: number;
+}
+
+export interface PrizeCategory extends BaseEntityModel {
+    name: string;
+    code: string;
+    description: string;
+    priority: number;
+    maxWinners: number;
+    rewardType: string;
+    isRepeatable: boolean;
+    isActive: boolean;
+    updatedAt: string;
+}
+
+export interface Prize extends BaseEntityModel {
+    categoryId: string;
+    name: string;
+    description: string;
+    value: number;
+    currency: string;
+    quantity: number;
+    remainingQuantity: number;
+    probability: number;
+    startDate: string;
+    endDate: string;
+    metadata: any;
+    updatedAt: string;
 }
