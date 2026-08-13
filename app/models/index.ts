@@ -372,3 +372,10 @@ export interface Prize extends BaseEntityModel {
     metadata: any;
     updatedAt: string;
 }
+
+export interface TicketGroup extends BaseEntityModel {
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    isActive: boolean;
+}
