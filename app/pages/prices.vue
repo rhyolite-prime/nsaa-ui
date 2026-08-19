@@ -33,6 +33,8 @@ const selectedCategoryId = ref<string | null>(null);
 const searchCategoryQuery = ref('');
 const searchPrizeQuery = ref('');
 
+
+
 // Computed filtered lists
 const filteredCategories = computed(() => {
   if (!searchCategoryQuery.value) return categories.value;
@@ -67,7 +69,7 @@ const categoryForm = ref<Partial<PrizeCategory>>({
   name: '',
   code: '',
   description: '',
-  priority: 0,
+  priority: '1',
   maxWinners: 1,
   rewardType: 'CASH',
   isRepeatable: false,
@@ -84,7 +86,7 @@ const openCategoryModal = (category?: PrizeCategory) => {
       name: '',
       code: '',
       description: '',
-      priority: 0,
+      priority: 1,
       maxWinners: 1,
       rewardType: 'CASH',
       isRepeatable: false,
@@ -130,6 +132,22 @@ const deleteCategory = (id: string) => {
 };
 
 
+// Computed property to generate lower-case, underscore-separated code from the name
+const generatedCode = computed(() => {
+  if (!categoryForm.value.name) return '';
+  return categoryForm.value.name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')        // Replace spaces with underscores
+    .replace(/[^a-z0-9_]/g, '');  // Remove any non-alphanumeric characters (except underscores)
+});
+
+// Keep categoryForm.code synced with the computed value when typing the name
+watch(() => categoryForm.value.name, () => {
+  // Automatically update code for new categories or if editing without a pre-existing fixed code
+  categoryForm.value.code = generatedCode.value;
+});
+
 // --- PRIZE MODAL ---
 const isPrizeModalOpen = ref(false);
 const editingPrize = ref<Prize | null>(null);
@@ -141,8 +159,6 @@ const prizeForm = ref<Partial<Prize>>({
   quantity: 1,
   remainingQuantity: 1,
   probability: 0,
-  startDate: '',
-  endDate: '',
   metadata: {}
 });
 
@@ -150,13 +166,7 @@ const openPrizeModal = (prize?: Prize) => {
   if (prize) {
     editingPrize.value = prize;
     prizeForm.value = { ...prize, metadata: prize.metadata || {} };
-    // Format dates for input[type="datetime-local"]
-    if (prizeForm.value.startDate) {
-      prizeForm.value.startDate = new Date(prizeForm.value.startDate).toISOString().slice(0, 16);
-    }
-    if (prizeForm.value.endDate) {
-      prizeForm.value.endDate = new Date(prizeForm.value.endDate).toISOString().slice(0, 16);
-    }
+     
   } else {
     editingPrize.value = null;
     prizeForm.value = {
@@ -167,8 +177,6 @@ const openPrizeModal = (prize?: Prize) => {
       quantity: 1,
       remainingQuantity: 1,
       probability: 0,
-      startDate: new Date().toISOString().slice(0, 16),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
       metadata: {}
     };
   }
@@ -184,7 +192,7 @@ const savePrize = () => {
   if (editingPrize.value) {
     prizesStore.updatePrize(editingPrize.value.id, { 
       ...prizeForm.value as Prize, 
-      updatedAt: new Date().toISOString() 
+       
     });
     toast.success('Prize updated successfully');
   } else {
@@ -192,8 +200,7 @@ const savePrize = () => {
       ...prizeForm.value as Prize,
       id: uuidv4(),
       categoryId: selectedCategoryId.value as string,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      
     };
     prizesStore.addPrize(newPrize);
     toast.success('Prize created successfully');
@@ -437,10 +444,21 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <textarea v-model="categoryForm.description" rows="2" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-slate-700 resize-none"></textarea>
           </div>
           <div class="grid grid-cols-2 md:grid-cols-3 gap-5">
+            
             <div class="space-y-1.5">
               <label class="text-xs font-black uppercase text-slate-500">Priority</label>
-              <input v-model="categoryForm.priority" type="number" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold text-slate-800" />
+              <select 
+                v-model.number="categoryForm.priority" 
+                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold text-slate-800 appearance-none cursor-pointer"
+              >
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
             </div>
+
             <div class="space-y-1.5">
               <label class="text-xs font-black uppercase text-slate-500">Max Winners</label>
               <input v-model="categoryForm.maxWinners" type="number" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold text-slate-800" />
@@ -448,22 +466,23 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div class="space-y-1.5">
               <label class="text-xs font-black uppercase text-slate-500">Reward Type</label>
               <select v-model="categoryForm.rewardType" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold text-slate-800 appearance-none">
-                <option value="CASH">Cash</option>
-                <option value="POINTS">Points</option>
-                <option value="GIFT_CARD">Gift Card</option>
-                <option value="VOUCHER">Voucher</option>
-                <option value="PHYSICAL_ITEM">Physical Item</option>
-                <option value="DIGITAL_ITEM">Digital Item</option>
-                <option value="SUBSCRIPTION">Subscription</option>
-                <option value="SERVICE">Service</option>
-                <option value="EXPERIENCE">Experience</option>
-                <option value="DONATION">Donation</option>
-                <option value="COUPON">Coupon</option>
-                <option value="DISCOUNT">Discount</option>
-                <option value="AIRTIME">Airtime</option>
-                <option value="MEMBERSHIP">Membership</option>
-                <option value="CONSOLATION">Consolation</option>
-                <option value="HYBRID">Hybrid</option>
+                <option value="0">Cash</option>
+                <option value="1">Points</option>
+                <option value="2">Gift Card</option>
+                <option value="3">Voucher</option>
+                <option value="4">Physical Item</option>
+                <option value="5">Digital Item</option>
+                <option value="6">Subscription</option>
+                <option value="7">Service</option>
+                <option value="8">Experience</option>
+                <option value="9">Donation</option>
+                <option value="10">Coupon</option>
+                <option value="11">Discount</option>
+                <option value="12">Airtime</option>
+                <option value="13">Data Bundle</option>
+                <option value="14">Membership</option>
+                <option value="15">Consolation</option>
+                <option value="1">Hybrid</option>
               </select>
             </div>
           </div>
@@ -535,17 +554,6 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div class="space-y-1.5">
               <label class="text-xs font-black uppercase text-slate-500">Remaining Qty</label>
               <input v-model="prizeForm.remainingQuantity" type="number" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-slate-800" required />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-5">
-            <div class="space-y-1.5">
-              <label class="text-xs font-black uppercase text-slate-500">Start Date</label>
-              <input v-model="prizeForm.startDate" type="datetime-local" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-slate-800" />
-            </div>
-            <div class="space-y-1.5">
-              <label class="text-xs font-black uppercase text-slate-500">End Date</label>
-              <input v-model="prizeForm.endDate" type="datetime-local" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-slate-800" />
             </div>
           </div>
           

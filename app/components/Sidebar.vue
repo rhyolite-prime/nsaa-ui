@@ -28,8 +28,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Squares2X2Icon },
-  { name: 'Colors', href: '/colors', icon: SwatchIcon },
-  { name: 'Prices', href: '/prices', icon: QueueListIcon },
+  { name: 'Prizes', href: '/prices', icon: QueueListIcon },
   { name: 'Raffles', href: '/raffles', icon: TrophyIcon },
   { 
     name: 'Tickets', 

@@ -64,15 +64,16 @@ export interface Role extends BaseEntityModel {
 }
 
 
-export interface PriceTier extends BaseEntityModel {
+export interface PriceCategory extends BaseEntityModel {
 
-    tierName: string;
-    tierLevel: string;
+    name: string;
+    code: string;
     description: string;
-    prizeAmount: number;
-    prizePercentage: number;
-    numberOfWinners: number;
-    isCashBack: boolean;
+    priority: number;
+    maxWinners: number;
+    rewardType: number;
+    is_repeatable: boolean;
+    is_active: boolean;
 
 }
 
@@ -130,7 +131,7 @@ export interface Raffle extends BaseEntityModel {
 
     name: string;
     slug: string;
-    status: string; // completed, active, upcoming, scheduled, DRAW IN PROGRESS
+    status: number;
     totalEntries: number;
     prizePool: string;
     winningColour: string;
@@ -367,8 +368,6 @@ export interface Prize extends BaseEntityModel {
     quantity: number;
     remainingQuantity: number;
     probability: number;
-    startDate: string;
-    endDate: string;
     metadata: any;
     updatedAt: string;
 }

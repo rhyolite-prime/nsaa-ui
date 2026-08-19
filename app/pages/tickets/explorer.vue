@@ -45,7 +45,7 @@ const paginationParams = reactive({
 
 const ticketList = ref<Ticket[]>([]);
 const ticketStats = ref<TicketStats>();
-const activeRaffle = ref<Raffle | null>(null);
+const activeRaffleList = ref<Raffle[]>([]);
 
 const isShimmerLoading = ref(true);
 
@@ -73,14 +73,6 @@ const getPaginatedTickets = async () => {
   
 }
 
-const getActiveRaffleData = async () => {
-    try {
-        const result = await getActiveRaffle();
-        activeRaffle.value = result;
-    } catch (error) {
-        console.error('Unable to fetch active raffle');
-    }
-}
 
 const onPageChange = async (pageNumber: number) => {
   filters.pageNo = pageNumber;
@@ -150,129 +142,10 @@ const debouncedSearch = debounce(() => {
       </button> -->
     </div>
 
-    <!-- Active Raffle Banner -->
-    <template v-if="isShimmerLoading && !activeRaffle">
-      <div class="bg-slate-900 rounded-[32px] p-8 relative overflow-hidden shadow-2xl shadow-slate-200/50 flex flex-col md:flex-row justify-between items-center gap-8 mb-8 min-h-[220px]">
-        <div class="absolute inset-0 shimmer opacity-10"></div>
-        <div class="relative z-10 flex flex-col gap-4 w-full md:w-auto">
-          <div class="w-32 h-4 bg-white/10 rounded-full"></div>
-          <div class="space-y-2">
-            <div class="w-64 h-8 bg-white/20 rounded-xl"></div>
-            <div class="w-24 h-3 bg-white/10 rounded-lg"></div>
-          </div>
-          <div class="flex gap-4 mt-2">
-            <div class="w-32 h-3 bg-white/10 rounded-lg"></div>
-            <div class="w-32 h-3 bg-white/10 rounded-lg"></div>
-          </div>
-        </div>
-        <div class="relative z-10 grid grid-cols-2 gap-4 w-full md:w-auto">
-          <div class="bg-white/5 border border-white/10 p-6 rounded-3xl min-w-[160px]">
-             <div class="w-16 h-2 bg-white/10 rounded mb-3"></div>
-             <div class="w-24 h-6 bg-white/20 rounded-lg"></div>
-          </div>
-          <div class="bg-white/5 border border-white/10 p-6 rounded-3xl min-w-[160px]">
-             <div class="w-16 h-2 bg-white/10 rounded mb-3"></div>
-             <div class="w-24 h-6 bg-white/20 rounded-lg"></div>
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <div v-else-if="activeRaffle" class="bg-slate-900 rounded-[32px] p-8 text-white relative overflow-hidden shadow-2xl shadow-slate-200/50 flex flex-col md:flex-row justify-between items-center gap-8 mb-8">
-      <!-- Background Decorative Element -->
-      <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-primary-500/10 rounded-full blur-3xl"></div>
-      <div class="absolute -left-10 -top-10 w-48 h-48 bg-secondary/5 rounded-full blur-2xl"></div>
-      
-      <div class="relative z-10 flex flex-col gap-4">
-        <div class="flex items-center gap-3">
-          <span class="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white/80">Current Raffle Campaign</span>
-          <span class="flex h-2 w-2 relative">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-        </div>
-        <div>
-          <h2 class="text-3xl font-black tracking-tight mb-1 text-white">{{ activeRaffle.name }}</h2>
-          <p class="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">{{ activeRaffle.slug }}</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-6 mt-2">
-            <div class="flex items-center gap-2">
-                <CalendarIcon class="w-4 h-4 text-white/20" />
-                <span class="text-[10px] font-black uppercase tracking-widest text-white/60">Ends {{ standardDateFormat(activeRaffle.endsAt) }}</span>
-            </div>
-            <div class="flex items-center gap-2 md:border-l md:border-white/10 md:pl-6">
-                <ClockIcon class="w-4 h-4 text-white/20" />
-                <span class="text-[10px] font-black uppercase tracking-widest text-white/60">{{ rawTimeFormat(activeRaffle.endsAt) }}</span>
-            </div>
-        </div>
-      </div>
-
-      <div class="relative z-10 grid grid-cols-2 gap-4 w-full md:w-auto">
-        <div class="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-3xl min-w-[160px] hover:bg-white/10 transition-colors">
-          <p class="text-[9px] uppercase tracking-[0.2em] text-white/30 font-black mb-1">Live Prize Pool</p>
-          <p class="text-2xl font-black tracking-tight text-white">{{ _currency(activeRaffle.prizePool) }}</p>
-        </div>
-        <div class="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-3xl min-w-[160px] hover:bg-white/10 transition-colors">
-          <p class="text-[9px] uppercase tracking-[0.2em] text-white/30 font-black mb-1">Total Entries</p>
-          <p class="text-2xl font-black tracking-tight text-white">{{ toNumber(activeRaffle.totalEntries) }}</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stats for Tickets -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <template v-if="isShimmerLoading">
-        <div v-for="i in 4" :key="i" class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <div class="flex justify-between items-center mb-4">
-             <div class="w-5 h-5 bg-slate-100 rounded-lg shimmer"></div>
-             <div class="w-20 h-2 bg-slate-50 rounded shimmer"></div>
-          </div>
-          <div class="h-8 w-2/3 bg-slate-100 rounded-xl shimmer mb-2"></div>
-          <div class="h-3 w-1/2 bg-slate-50 rounded shimmer"></div>
-        </div>
-      </template>
-
-      <template v-else>
-        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <div class="flex justify-between opacity-30 mb-3">
-            <TagIcon class="w-5 h-5" />
-            <span class="text-[9px] font-black uppercase tracking-widest">Total Tickets</span>
-          </div>
-          <div class="text-2xl font-black text-slate-800 tracking-tight">{{ ticketStats?.totalTickets }}</div>
-          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Tickets</div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <div class="flex justify-between opacity-30 mb-3">
-            <TicketIcon class="w-5 h-5" />
-            <span class="text-[9px] font-black uppercase tracking-widest">Active Tickets</span>
-          </div>
-          <div class="text-2xl font-black text-slate-800 tracking-tight">{{ ticketStats?.activeTickets }}</div>
-          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Active Tickets</div>
-        </div>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <div class="flex justify-between opacity-30 mb-3">
-            <ChartBarIcon class="w-5 h-5" />
-            <span class="text-[9px] font-black uppercase tracking-widest">Conversion Rate</span>
-          </div>
-          <div class="text-2xl font-black text-slate-800 tracking-tight">{{ toNumber(ticketStats?.conversionRate) }}</div>
-          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Conversion Rate</div>
-        </div>
-      
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <div class="flex justify-between opacity-30 mb-3">
-            <BanknotesIcon class="w-5 h-5" />
-            <span class="text-[9px] font-black uppercase tracking-widest">Total Revenue</span>
-          </div>
-          <div class="text-2xl font-black text-slate-800 tracking-tight">{{ _currency(ticketStats?.totalRevenue) }}</div>
-          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">Total Revenue</div>
-        </div>
-      </template>
-    </div>
-
     
+
+    <!-- List active raffles for selection, when a user selects an active raffle we display the ticket records for that raffle -->
+     
 
     <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
       

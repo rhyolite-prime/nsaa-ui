@@ -51,6 +51,8 @@ const isShimmerLoading = ref(true);
 
 const getPaginatedRaffles = async () => {
 
+  isShimmerLoading.value = true;
+
     try {
 
         let result = await getRaffles(filters);
@@ -77,11 +79,11 @@ const onPageChange = async (pageNumber: number) => {
   await getPaginatedRaffles();
 };
 
-const getStatusClass = (status: string) => {
+const getStatusClass = (status: number) => {
   switch (status) {
-    case 'ACTIVE': return 'bg-blue-100 text-blue-700';
-    case 'COMPLETED': return 'bg-emerald-100 text-emerald-700';
-    case 'UPCOMING': return 'bg-slate-100 text-slate-600';
+    case 0 : return 'bg-blue-100 text-blue-700';
+    case 2: return 'bg-emerald-100 text-emerald-700';
+    case 1: return 'bg-slate-100 text-slate-600';
     default: return 'bg-slate-100 text-slate-600';
   }
 };
@@ -234,18 +236,18 @@ const confirmDelete = async () => {
         leave-to-class="transform scale-95 opacity-0">
         <!-- Loading State -->
         <template v-if="isShimmerLoading">
-          <RaffleSkeleton v-for="i in 6" :key="`skeleton-${i}`" />
+          <RaffleSkeleton v-for="i in 3" :key="`skeleton-${i}`" />
         </template>
 
         <!-- Data State -->
-        <template v-else>
+        <template v-if="!isShimmerLoading">
           <div v-for="raffle in raffleList" :key="raffle.id" class="bg-white rounded-3xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 group">
             <div class="p-8">
               <div class="flex justify-between items-start mb-6">
                 <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" :class="getStatusClass(raffle.status)">
                   {{ raffle.status }}
                 </span>
-                <div v-if="raffle.status.toUpperCase() !== 'ACTIVE'" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div v-if="raffle.status !== '1'" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <NuxtLink 
                     :to="`/raffles/${raffle.id}/edit`"
                     class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors inline-block"
