@@ -17,29 +17,93 @@ import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
 
 import type { PrizeCategory, Prize } from "~/models";
-import { v4 as uuidv4 } from 'uuid';
+import { 
+  getPrizeCategories, 
+  createPrizeCategory, 
+  updatePrizeCategory, 
+  deletePrizeCategory, 
+  getCategoryPrizes, 
+  createPrize, 
+  updatePrize, 
+  deletePrize as deletePrizeApi 
+} from '~/services/priceConfig';
 
 useHead({
   title: 'Prizes Management | NSAA BO'
 })
 
-const prizesStore = usePrizesStore();
-const categories = prizesStore.categories;
-const allPrizes = prizesStore.allPrizes;
-
-
 // --- STATE ---
+const categories = ref<PrizeCategory[]>([]);
+const allPrizes = ref<Prize[]>([]);
+
 const selectedCategoryId = ref<string | null>(null);
 const searchCategoryQuery = ref('');
 const searchPrizeQuery = ref('');
 
+// --- DATA FETCHING ---
+const loadCategories = async () => {
+  try {
+    const res = await getPrizeCategories({});
+    categories.value = res?.data || [];
+  } catch (error) {
+    console.error('Failed to load categories', error);
+  }
+};
 
+const loadPrizes = async () => {
+  if (!selectedCategoryId.value) {
+    allPrizes.value = [];
+    return;
+  }
+  try {
+    const res = await getCategoryPrizes(selectedCategoryId.value);
+    allPrizes.value = res.data || [];
+  } catch (error) {
+    console.error('Failed to load prizes', error);
+  }
+};
+
+onMounted(() => {
+  loadCategories();
+});
+
+watch(selectedCategoryId, () => {
+  if (selectedCategoryId.value) {
+    loadPrizes();
+  }
+});
+
+// Reward Type Mapping
+const rewardTypeMap: Record<number, string> = {
+  0: 'CASH',
+  1: 'POINTS',
+  2: 'GIFT_CARD',
+  3: 'VOUCHER',
+  4: 'PHYSICAL_ITEM',
+  5: 'DIGITAL_ITEM',
+  6: 'SUBSCRIPTION',
+  7: 'SERVICE',
+  8: 'EXPERIENCE',
+  9: 'DONATION',
+  10: 'COUPON',
+  11: 'DISCOUNT',
+  12: 'AIRTIME',
+  13: 'DATA_BUNDLE',
+  14: 'MEMBERSHIP',
+  15: 'CONSOLATION',
+  16: 'HYBRID'
+};
+
+const getRewardTypeName = (type: any) => {
+  const t = Number(type);
+  return rewardTypeMap[t] || 'Unknown';
+};
 
 // Computed filtered lists
 const filteredCategories = computed(() => {
   if (!searchCategoryQuery.value) return categories.value;
   const q = searchCategoryQuery.value.toLowerCase();
-  return categories.value.filter(c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
+  return categories.value.filter(c => c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q));
 });
 
 const selectedCategory = computed(() => {
@@ -47,16 +111,19 @@ const selectedCategory = computed(() => {
 });
 
 const selectedCategoryRewardType = computed(() => {
-  return selectedCategory.value?.rewardType || 'CASH';
+  const type = selectedCategory.value?.rewardType;
+  if (type !== undefined) {
+    return rewardTypeMap[Number(type)] || 'CASH';
+  }
+  return 'CASH';
 });
 
 const categoryPrizes = computed(() => {
-  if (!selectedCategoryId.value) return [];
-  let prizesForCat = allPrizes.value.filter(p => p.categoryId === selectedCategoryId.value);
+  let prizesForCat = allPrizes.value;
   
   if (searchPrizeQuery.value) {
     const q = searchPrizeQuery.value.toLowerCase();
-    prizesForCat = prizesForCat.filter(p => p.name.toLowerCase().includes(q));
+    prizesForCat = prizesForCat.filter(p => p.name?.toLowerCase().includes(q));
   }
   return prizesForCat;
 });
@@ -69,9 +136,9 @@ const categoryForm = ref<Partial<PrizeCategory>>({
   name: '',
   code: '',
   description: '',
-  priority: '1',
+  priority: 1,
   maxWinners: 1,
-  rewardType: 'CASH',
+  rewardType: '0' as any,
   isRepeatable: false,
   isActive: true
 });
@@ -88,7 +155,7 @@ const openCategoryModal = (category?: PrizeCategory) => {
       description: '',
       priority: 1,
       maxWinners: 1,
-      rewardType: 'CASH',
+      rewardType: '0' as any,
       isRepeatable: false,
       isActive: true
     };
@@ -96,38 +163,62 @@ const openCategoryModal = (category?: PrizeCategory) => {
   isCategoryModalOpen.value = true;
 };
 
-const saveCategory = () => {
+const saveCategory = async () => {
   if (!categoryForm.value.name || !categoryForm.value.code) {
     toast.error('Name and Code are required');
     return;
   }
   
-  if (editingCategory.value) {
-    prizesStore.updateCategory(editingCategory.value.id, { ...categoryForm.value as PrizeCategory, updatedAt: new Date().toISOString() });
-    toast.success('Category updated successfully');
-  } else {
-    const newCategory: PrizeCategory = {
-      ...categoryForm.value as PrizeCategory,
-      id: uuidv4(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    prizesStore.addCategory(newCategory);
-    toast.success('Category created successfully');
-    if (!selectedCategoryId.value) {
-      selectedCategoryId.value = newCategory.id;
+  const payload = {
+    name: categoryForm.value.name,
+    code: categoryForm.value.code,
+    description: categoryForm.value.description,
+    priority: Number(categoryForm.value.priority),
+    maxWinners: Number(categoryForm.value.maxWinners),
+    rewardType: Number(categoryForm.value.rewardType),
+    isActive: Boolean(categoryForm.value.isActive),
+    isRepeatable: Boolean(categoryForm.value.isRepeatable)
+  };
+
+  try {
+    if (editingCategory.value) {
+      await updatePrizeCategory(editingCategory.value.id, payload);
+      toast.success('Category updated successfully');
+    } else {
+      await createPrizeCategory(payload);
+      toast.success('Category created successfully');
     }
+    isCategoryModalOpen.value = false;
+    await loadCategories();
+  } catch (error) {
+    toast.error('Failed to save category');
   }
-  isCategoryModalOpen.value = false;
 };
 
-const deleteCategory = (id: string) => {
-  if (confirm('Are you sure you want to delete this category? All linked prizes will also be deleted.')) {
-    prizesStore.deleteCategory(id);
+const isDeleteCategoryModalOpen = ref(false);
+const categoryToDelete = ref<string | null>(null);
+
+const openDeleteCategoryModal = (id: string) => {
+  categoryToDelete.value = id;
+  isDeleteCategoryModalOpen.value = true;
+};
+
+const confirmDeleteCategory = async () => {
+  if (!categoryToDelete.value) return;
+  const id = categoryToDelete.value;
+  try {
+    await deletePrizeCategory(id);
     if (selectedCategoryId.value === id) {
       selectedCategoryId.value = null;
+      allPrizes.value = [];
     }
     toast.success('Category deleted');
+    await loadCategories();
+  } catch (error) {
+    toast.error('Failed to delete category');
+  } finally {
+    isDeleteCategoryModalOpen.value = false;
+    categoryToDelete.value = null;
   }
 };
 
@@ -145,7 +236,9 @@ const generatedCode = computed(() => {
 // Keep categoryForm.code synced with the computed value when typing the name
 watch(() => categoryForm.value.name, () => {
   // Automatically update code for new categories or if editing without a pre-existing fixed code
-  categoryForm.value.code = generatedCode.value;
+  if (!editingCategory.value) {
+    categoryForm.value.code = generatedCode.value;
+  }
 });
 
 // --- PRIZE MODAL ---
@@ -159,14 +252,13 @@ const prizeForm = ref<Partial<Prize>>({
   quantity: 1,
   remainingQuantity: 1,
   probability: 0,
-  metadata: {}
+  metaData: {}
 });
 
 const openPrizeModal = (prize?: Prize) => {
   if (prize) {
     editingPrize.value = prize;
-    prizeForm.value = { ...prize, metadata: prize.metadata || {} };
-     
+    prizeForm.value = { ...prize, metaData: prize.metaData || {} };
   } else {
     editingPrize.value = null;
     prizeForm.value = {
@@ -177,41 +269,70 @@ const openPrizeModal = (prize?: Prize) => {
       quantity: 1,
       remainingQuantity: 1,
       probability: 0,
-      metadata: {}
+      metaData: {}
     };
   }
   isPrizeModalOpen.value = true;
 };
 
-const savePrize = () => {
-  if (!prizeForm.value.name || !prizeForm.value.value) {
+const savePrize = async () => {
+  if (!prizeForm.value.name || prizeForm.value.value === undefined) {
     toast.error('Name and Value are required');
     return;
   }
   
-  if (editingPrize.value) {
-    prizesStore.updatePrize(editingPrize.value.id, { 
-      ...prizeForm.value as Prize, 
-       
-    });
-    toast.success('Prize updated successfully');
-  } else {
-    const newPrize: Prize = {
-      ...prizeForm.value as Prize,
-      id: uuidv4(),
-      categoryId: selectedCategoryId.value as string,
-      
-    };
-    prizesStore.addPrize(newPrize);
-    toast.success('Prize created successfully');
+  if (!selectedCategoryId.value) {
+    toast.error('No category selected');
+    return;
   }
-  isPrizeModalOpen.value = false;
+  
+  const payload = {
+    categoryId: selectedCategoryId.value,
+    name: prizeForm.value.name,
+    description: prizeForm.value.description,
+    value: Number(prizeForm.value.value),
+    probability: Number(prizeForm.value.probability),
+    currency: prizeForm.value.currency,
+    quantity: Number(prizeForm.value.quantity),
+    remainingQuantity: Number(prizeForm.value.remainingQuantity),
+    metaData: prizeForm.value.metaData || {}
+  };
+  
+  try {
+    if (editingPrize.value) {
+      await updatePrize(editingPrize.value.id, payload);
+      toast.success('Prize updated successfully');
+    } else {
+      await createPrize(payload);
+      toast.success('Prize created successfully');
+    }
+    isPrizeModalOpen.value = false;
+    await loadPrizes();
+  } catch (error) {
+    toast.error('Failed to save prize');
+  }
 };
 
-const deletePrize = (id: string) => {
-  if (confirm('Are you sure you want to delete this prize?')) {
-    prizesStore.deletePrize(id);
+const isDeletePrizeModalOpen = ref(false);
+const prizeToDelete = ref<string | null>(null);
+
+const openDeletePrizeModal = (id: string) => {
+  prizeToDelete.value = id;
+  isDeletePrizeModalOpen.value = true;
+};
+
+const confirmDeletePrize = async () => {
+  if (!prizeToDelete.value) return;
+  const id = prizeToDelete.value;
+  try {
+    await deletePrizeApi(id);
     toast.success('Prize deleted');
+    await loadPrizes();
+  } catch (error) {
+    toast.error('Failed to delete prize');
+  } finally {
+    isDeletePrizeModalOpen.value = false;
+    prizeToDelete.value = null;
   }
 };
 
@@ -288,7 +409,7 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
               <p class="text-xs text-slate-500 line-clamp-1 mb-2">{{ cat.description }}</p>
               <div class="flex items-center gap-3 text-[11px] font-semibold text-slate-400">
                 <span class="flex items-center gap-1"><TagIcon class="w-3 h-3" /> {{ cat.code }}</span>
-                <span class="flex items-center gap-1"><GiftIcon class="w-3 h-3" /> {{ cat.rewardType }}</span>
+                <span class="flex items-center gap-1"><GiftIcon class="w-3 h-3" /> {{ getRewardTypeName(cat.rewardType) }}</span>
               </div>
             </div>
             
@@ -296,7 +417,7 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
               <button @click.stop="openCategoryModal(cat)" class="p-1.5 text-blue-500 hover:bg-blue-100 rounded-lg">
                 <PencilIcon class="w-4 h-4" />
               </button>
-              <button @click.stop="deleteCategory(cat.id)" class="p-1.5 text-red-500 hover:bg-red-100 rounded-lg">
+              <button @click.stop="openDeleteCategoryModal(cat.id)" class="p-1.5 text-red-500 hover:bg-red-100 rounded-lg">
                 <TrashIcon class="w-4 h-4" />
               </button>
             </div>
@@ -365,15 +486,15 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
                   </div>
                   
                   <!-- Metadata display badges -->
-                  <div class="flex items-center gap-2 ml-auto" v-if="prize.metadata && Object.keys(prize.metadata).length > 0">
-                    <span v-if="prize.metadata.payoutMethod" class="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] uppercase font-black tracking-wider">
-                      {{ prize.metadata.payoutMethod.replace('_', ' ') }}
+                  <div class="flex items-center gap-2 ml-auto" v-if="prize.metaData && Object.keys(prize.metaData).length > 0">
+                    <span v-if="prize.metaData.payoutMethod" class="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] uppercase font-black tracking-wider">
+                      {{ typeof prize.metaData.payoutMethod === 'string' ? prize.metaData.payoutMethod.replace('_', ' ') : prize.metaData.payoutMethod }}
                     </span>
-                    <span v-if="prize.metadata.provider || prize.metadata.brand" class="px-2 py-1 bg-purple-50 text-purple-600 rounded text-[10px] uppercase font-black tracking-wider flex items-center gap-1">
-                      <TagIcon class="w-3 h-3" /> {{ prize.metadata.provider || prize.metadata.brand }}
+                    <span v-if="prize.metaData.provider || prize.metaData.brand" class="px-2 py-1 bg-purple-50 text-purple-600 rounded text-[10px] uppercase font-black tracking-wider flex items-center gap-1">
+                      <TagIcon class="w-3 h-3" /> {{ prize.metaData.provider || prize.metaData.brand }}
                     </span>
-                    <span v-if="prize.metadata.itemBrand" class="px-2 py-1 bg-amber-50 text-amber-600 rounded text-[10px] uppercase font-black tracking-wider">
-                      {{ prize.metadata.itemBrand }} {{ prize.metadata.itemModel || '' }}
+                    <span v-if="prize.metaData.itemBrand" class="px-2 py-1 bg-amber-50 text-amber-600 rounded text-[10px] uppercase font-black tracking-wider">
+                      {{ prize.metaData.itemBrand }} {{ prize.metaData.itemModel || '' }}
                     </span>
                   </div>
                 </div>
@@ -383,7 +504,7 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
                 <button @click="openPrizeModal(prize)" class="p-2 text-blue-500 hover:bg-blue-50 rounded-xl bg-slate-50 border border-slate-100">
                   <PencilIcon class="w-4 h-4" />
                 </button>
-                <button @click="deletePrize(prize.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-xl bg-slate-50 border border-slate-100">
+                <button @click="openDeletePrizeModal(prize.id)" class="p-2 text-red-500 hover:bg-red-50 rounded-xl bg-slate-50 border border-slate-100">
                   <TrashIcon class="w-4 h-4" />
                 </button>
               </div>
@@ -482,7 +603,7 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
                 <option value="13">Data Bundle</option>
                 <option value="14">Membership</option>
                 <option value="15">Consolation</option>
-                <option value="1">Hybrid</option>
+                <option value="16">Hybrid</option>
               </select>
             </div>
           </div>
@@ -533,8 +654,6 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <textarea v-model="prizeForm.description" rows="2" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-medium text-slate-700 resize-none"></textarea>
           </div>
         
-
-          
           <div class="grid grid-cols-2 gap-5">
             <div class="space-y-1.5">
               <label class="text-xs font-black uppercase text-slate-500">Value / Amount</label>
@@ -542,7 +661,8 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             </div>
             <div class="space-y-1.5">
               <label class="text-xs font-black uppercase text-slate-500">Win Probability (0-1)</label>
-              <input v-model="prizeForm.probability" type="number" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-slate-800" />
+              <input v-model.number="prizeForm.probability" type="number" step="any" min="0" max="1" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-bold text-slate-800"   />
+              
             </div>
           </div>
 
@@ -558,7 +678,7 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
           </div>
           
           <!-- DYNAMIC METADATA CONFIGURATION -->
-          <div v-if="prizeForm.metadata" class="mt-4 p-5 bg-slate-50/80 rounded-2xl border border-slate-100 flex flex-col gap-4">
+          <div v-if="prizeForm.metaData" class="mt-4 p-5 bg-slate-50/80 rounded-2xl border border-slate-100 flex flex-col gap-4">
             <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
               <TagIcon class="w-4 h-4 text-slate-400" />
               {{ selectedCategoryRewardType }} Configuration (Metadata)
@@ -567,27 +687,27 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'CASH'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Payout Method</label>
-                <select v-model="prizeForm.metadata.payoutMethod" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
+                <select v-model="prizeForm.metaData.payoutMethod" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
                   <option value="bank_transfer">Bank Transfer</option>
                   <option value="mobile_money">Mobile Money</option>
                   <option value="cash_pickup">Cash Pickup</option>
                 </select>
               </div>
               <div class="flex items-center gap-2 mt-6">
-                <input v-model="prizeForm.metadata.requiresTaxDeduction" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input v-model="prizeForm.metaData.requiresTaxDeduction" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                 <span class="text-sm font-bold text-slate-700">Requires Tax Deduction</span>
               </div>
               
-              <template v-if="prizeForm.metadata.requiresTaxDeduction">
+              <template v-if="prizeForm.metaData.requiresTaxDeduction">
                 <div class="flex items-center gap-2 mt-6">
-                  <input v-model="prizeForm.metadata.isTaxPercentage" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                  <input v-model="prizeForm.metaData.isTaxPercentage" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                   <span class="text-sm font-bold text-slate-700">Is Percentage?</span>
                 </div>
                 <div class="space-y-1.5">
                   <label class="text-[11px] font-black uppercase text-slate-500">
-                    Tax {{ prizeForm.metadata.isTaxPercentage ? 'Percentage (%)' : 'Amount' }}
+                    Tax {{ prizeForm.metaData.isTaxPercentage ? 'Percentage (%)' : 'Amount' }}
                   </label>
-                  <input v-model="prizeForm.metadata.taxValue" type="number" step="0.01" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                  <input v-model="prizeForm.metaData.taxValue" type="number" step="0.01" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
                 </div>
               </template>
             </div>
@@ -595,29 +715,29 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'POINTS'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Point Multiplier</label>
-                <input v-model="prizeForm.metadata.pointMultiplier" type="number" step="0.1" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.pointMultiplier" type="number" step="0.1" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Expiry Days</label>
-                <input v-model="prizeForm.metadata.expiryDays" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.expiryDays" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
             </div>
 
             <div v-if="selectedCategoryRewardType === 'GIFT_CARD'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Brand</label>
-                <input v-model="prizeForm.metadata.brand" type="text" placeholder="e.g. Amazon, Apple" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.brand" type="text" placeholder="e.g. Amazon, Apple" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Delivery Method</label>
-                <select v-model="prizeForm.metadata.deliveryMethod" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
+                <select v-model="prizeForm.metaData.deliveryMethod" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
                   <option value="email">Email</option>
                   <option value="sms">SMS</option>
   
                 </select>
               </div>
               <div class="flex items-center gap-2 mt-2 col-span-2">
-                <input v-model="prizeForm.metadata.activationRequired" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input v-model="prizeForm.metaData.activationRequired" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                 <span class="text-sm font-bold text-slate-700">Activation Required</span>
               </div>
             </div>
@@ -625,29 +745,29 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'VOUCHER'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Provider</label>
-                <input v-model="prizeForm.metadata.provider" type="text" placeholder="e.g. Shoprite, Spa" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.provider" type="text" placeholder="e.g. Shoprite, Spa" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Validity (Days)</label>
-                <input v-model="prizeForm.metadata.validityDays" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.validityDays" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5 col-span-2">
                 <label class="text-[11px] font-black uppercase text-slate-500">Redemption URL</label>
-                <input v-model="prizeForm.metadata.redemptionUrl" type="url" placeholder="https://" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.redemptionUrl" type="url" placeholder="https://" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
             </div>
 
             <div v-if="selectedCategoryRewardType === 'PHYSICAL_ITEM'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Item Brand</label>
-                <input v-model="prizeForm.metadata.itemBrand" type="text" placeholder="e.g. Apple, Samsung" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.itemBrand" type="text" placeholder="e.g. Apple, Samsung" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Item Model/Type</label>
-                <input v-model="prizeForm.metadata.itemModel" type="text" placeholder="e.g. iPhone 15 Pro" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.itemModel" type="text" placeholder="e.g. iPhone 15 Pro" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="flex items-center gap-2 mt-2 col-span-2">
-                <input v-model="prizeForm.metadata.shippingRequired" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input v-model="prizeForm.metaData.shippingRequired" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                 <span class="text-sm font-bold text-slate-700">Requires Shipping</span>
               </div>
             </div>
@@ -655,29 +775,29 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'DIGITAL_ITEM'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Format</label>
-                <input v-model="prizeForm.metadata.format" type="text" placeholder="e.g. PDF, PNG, ZIP" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.format" type="text" placeholder="e.g. PDF, PNG, ZIP" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">License Key</label>
-                <input v-model="prizeForm.metadata.licenseKey" type="text" placeholder="Optional" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.licenseKey" type="text" placeholder="Optional" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5 col-span-2">
                 <label class="text-[11px] font-black uppercase text-slate-500">Download Link</label>
-                <input v-model="prizeForm.metadata.downloadLink" type="url" placeholder="https://" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.downloadLink" type="url" placeholder="https://" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
             </div>
 
             <div v-if="selectedCategoryRewardType === 'SUBSCRIPTION'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Plan Name</label>
-                <input v-model="prizeForm.metadata.planName" type="text" placeholder="e.g. Premium 4K" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.planName" type="text" placeholder="e.g. Premium 4K" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Duration (Months)</label>
-                <input v-model="prizeForm.metadata.durationMonths" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.durationMonths" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="flex items-center gap-2 mt-2 col-span-2">
-                <input v-model="prizeForm.metadata.autoRenew" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input v-model="prizeForm.metaData.autoRenew" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                 <span class="text-sm font-bold text-slate-700">Auto Renew Enabled</span>
               </div>
             </div>
@@ -685,14 +805,14 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'SERVICE'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Service Provider</label>
-                <input v-model="prizeForm.metadata.serviceProvider" type="text" placeholder="e.g. AutoSpa" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.serviceProvider" type="text" placeholder="e.g. AutoSpa" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Location</label>
-                <input v-model="prizeForm.metadata.location" type="text" placeholder="e.g. East Legon" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.location" type="text" placeholder="e.g. East Legon" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="flex items-center gap-2 mt-2 col-span-2">
-                <input v-model="prizeForm.metadata.bookingRequired" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input v-model="prizeForm.metaData.bookingRequired" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                 <span class="text-sm font-bold text-slate-700">Booking Required</span>
               </div>
             </div>
@@ -700,18 +820,18 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'EXPERIENCE'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Event Name</label>
-                <input v-model="prizeForm.metadata.eventName" type="text" placeholder="e.g. Afrochella" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.eventName" type="text" placeholder="e.g. Afrochella" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Event Date</label>
-                <input v-model="prizeForm.metadata.date" type="date" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.date" type="date" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Location</label>
-                <input v-model="prizeForm.metadata.location" type="text" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.location" type="text" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="flex items-center gap-2 mt-6">
-                <input v-model="prizeForm.metadata.vipAccess" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input v-model="prizeForm.metaData.vipAccess" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                 <span class="text-sm font-bold text-slate-700">VIP Access</span>
               </div>
             </div>
@@ -719,14 +839,14 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'DONATION'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5 col-span-2">
                 <label class="text-[11px] font-black uppercase text-slate-500">Charity Name</label>
-                <input v-model="prizeForm.metadata.charityName" type="text" placeholder="e.g. Red Cross" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.charityName" type="text" placeholder="e.g. Red Cross" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="flex items-center gap-2 mt-2">
-                <input v-model="prizeForm.metadata.taxDeductibleReceipt" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input v-model="prizeForm.metaData.taxDeductibleReceipt" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                 <span class="text-sm font-bold text-slate-700">Tax Deductible</span>
               </div>
               <div class="flex items-center gap-2 mt-2">
-                <input v-model="prizeForm.metadata.certificateAvailable" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input v-model="prizeForm.metaData.certificateAvailable" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                 <span class="text-sm font-bold text-slate-700">Certificate Provided</span>
               </div>
             </div>
@@ -734,26 +854,26 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'COUPON'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5 col-span-2">
                 <label class="text-[11px] font-black uppercase text-slate-500">Discount Code</label>
-                <input v-model="prizeForm.metadata.discountCode" type="text" placeholder="e.g. SAVE50" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.discountCode" type="text" placeholder="e.g. SAVE50" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Min Purchase</label>
-                <input v-model="prizeForm.metadata.minPurchase" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.minPurchase" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Max Discount</label>
-                <input v-model="prizeForm.metadata.maxDiscount" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.maxDiscount" type="number" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
             </div>
 
             <div v-if="selectedCategoryRewardType === 'DISCOUNT'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Discount Percentage</label>
-                <input v-model="prizeForm.metadata.discountPercentage" type="number" min="1" max="100" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.discountPercentage" type="number" min="1" max="100" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Applies To</label>
-                <select v-model="prizeForm.metadata.appliesTo" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
+                <select v-model="prizeForm.metaData.appliesTo" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
                   <option value="ALL_ITEMS">Storewide</option>
                   <option value="SPECIFIC_CATEGORY">Specific Category</option>
                   <option value="SHIPPING_ONLY">Shipping Only</option>
@@ -764,7 +884,7 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'AIRTIME'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Network Provider</label>
-                <select v-model="prizeForm.metadata.networkProvider" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
+                <select v-model="prizeForm.metaData.networkProvider" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
                   <option value="MTN">MTN</option>
                   <option value="VODAFONE">Telecel (Vodafone)</option>
                   <option value="AIRTELTIGO">AT (AirtelTigo)</option>
@@ -772,7 +892,7 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
               </div>
                
               <div class="flex items-center gap-2 mt-6">
-                <input v-model="prizeForm.metadata.phoneNumberRequired" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
+                <input v-model="prizeForm.metaData.phoneNumberRequired" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
                 <span class="text-sm font-bold text-slate-700">Requires Phone Number Input</span>
               </div>
             </div>
@@ -780,29 +900,29 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <div v-if="selectedCategoryRewardType === 'MEMBERSHIP'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Membership Tier</label>
-                <input v-model="prizeForm.metadata.membershipTier" type="text" placeholder="e.g. Gold, VIP" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.membershipTier" type="text" placeholder="e.g. Gold, VIP" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Access Level</label>
-                <input v-model="prizeForm.metadata.accessLevel" type="text" placeholder="e.g. All Access" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.accessLevel" type="text" placeholder="e.g. All Access" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
             </div>
 
             <div v-if="selectedCategoryRewardType === 'CONSOLATION'" class="grid grid-cols-1 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Consolation Type</label>
-                <input v-model="prizeForm.metadata.consolationType" type="text" placeholder="e.g. Digital Card" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.consolationType" type="text" placeholder="e.g. Digital Card" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Message</label>
-                <textarea v-model="prizeForm.metadata.message" rows="2" placeholder="Thank you for playing!" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20 resize-none"></textarea>
+                <textarea v-model="prizeForm.metaData.message" rows="2" placeholder="Thank you for playing!" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20 resize-none"></textarea>
               </div>
             </div>
 
             <div v-if="selectedCategoryRewardType === 'HYBRID'" class="grid grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Primary Reward Type</label>
-                <select v-model="prizeForm.metadata.primaryReward" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
+                <select v-model="prizeForm.metaData.primaryReward" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20">
                   <option value="CASH">Cash</option>
                   <option value="PHYSICAL_ITEM">Physical Item</option>
                   <option value="POINTS">Points</option>
@@ -810,7 +930,7 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
               </div>
               <div class="space-y-1.5">
                 <label class="text-[11px] font-black uppercase text-slate-500">Bundle Components (Comma separated)</label>
-                <input v-model="prizeForm.metadata.components" type="text" placeholder="CASH, ITEM, POINTS" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
+                <input v-model="prizeForm.metaData.components" type="text" placeholder="CASH, ITEM, POINTS" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-red-500/20" />
               </div>
             </div>
             
@@ -821,6 +941,46 @@ const formatCurrency = (amount: number, currency = 'GHS') => {
             <button type="submit" class="px-6 py-2.5 rounded-xl font-bold text-white bg-[#C82323] hover:bg-[#A01D1D] shadow-md shadow-red-500/20">Save Prize</button>
           </div>
         </form>
+      </div>
+    </div>
+    
+    <!-- Delete Category Confirmation Modal -->
+    <div v-if="isDeleteCategoryModalOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="isDeleteCategoryModalOpen = false"></div>
+      <div class="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col p-6">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+            <TrashIcon class="w-6 h-6 text-red-600" />
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-slate-900">Delete Category?</h3>
+            <p class="text-sm text-slate-500 mt-1">Are you sure you want to delete this category? All linked prizes will also be deleted.</p>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="isDeleteCategoryModalOpen = false" class="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">Cancel</button>
+          <button @click="confirmDeleteCategory" class="px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-md shadow-red-500/20">Delete Category</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Prize Confirmation Modal -->
+    <div v-if="isDeletePrizeModalOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="isDeletePrizeModalOpen = false"></div>
+      <div class="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col p-6">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+            <TrashIcon class="w-6 h-6 text-red-600" />
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-slate-900">Delete Prize?</h3>
+            <p class="text-sm text-slate-500 mt-1">Are you sure you want to delete this prize? This action cannot be undone.</p>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="isDeletePrizeModalOpen = false" class="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">Cancel</button>
+          <button @click="confirmDeletePrize" class="px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-md shadow-red-500/20">Delete Prize</button>
+        </div>
       </div>
     </div>
   </div>

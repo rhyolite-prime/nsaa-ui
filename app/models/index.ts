@@ -368,7 +368,7 @@ export interface Prize extends BaseEntityModel {
     quantity: number;
     remainingQuantity: number;
     probability: number;
-    metadata: any;
+    metaData: any;
     updatedAt: string;
 }
 

@@ -3,13 +3,13 @@ import type { PriceCategory, Prize, BaseApiResponse, BasePaginationModel } from 
  
 export async function getPrizeCategories(query: object) {
  
-    const response = await httpClient<BaseApiResponse<BasePaginationModel<PriceCategory[]>>>('price-config/get-all-categories', "", { query });
+    const response = await httpClient<BaseApiResponse<BasePaginationModel<PriceCategory[]>>>('prize-config/get-all-categories', "", { query });
     return response.result;
 }
 
 export async function createPrizeCategory(payload: object) {
     
-  const response = await httpClient<BaseApiResponse<object>>('price-config/create-category', "", {
+  const response = await httpClient<BaseApiResponse<object>>('prize-config/create-category', "", {
     method: "post",
     body: payload,
   });
@@ -18,8 +18,8 @@ export async function createPrizeCategory(payload: object) {
 
 export async function updatePrizeCategory(id: string, payload: object) {
     
-  const response = await httpClient<BaseApiResponse<object>>(`price-config/update-category/${id}`, "", {
-    method: "post",
+  const response = await httpClient<BaseApiResponse<object>>(`prize-config/update-category/${id}`, "", {
+    method: "put",
     body: payload,
   });
   return response.success;
@@ -27,7 +27,7 @@ export async function updatePrizeCategory(id: string, payload: object) {
 
 export async function deletePrizeCategory(id: string) {
  
-    const response = await httpClient<BaseApiResponse<object>>(`price-config/delete-category/${id}`, "", { method: "delete", });
+    const response = await httpClient<BaseApiResponse<object>>(`prize-config/delete-category/${id}`, "", { method: "delete", });
     return response.success;
 }
 
@@ -36,13 +36,19 @@ export async function deletePrizeCategory(id: string) {
 
 export async function getPrizes(query: object) {
  
-    const response = await httpClient<BaseApiResponse<BasePaginationModel<Prize[]>>>('price-config/get-all-prizes', "", { query });
+    const response = await httpClient<BaseApiResponse<BasePaginationModel<Prize[]>>>('prize-config/get-all-prizes', "", { query });
+    return response.result;
+}
+
+export async function getCategoryPrizes(id: string) {
+ 
+    const response = await httpClient<BaseApiResponse<Prize[]>>(`prize-config/get-category-prizes/${id}`, "");
     return response.result;
 }
 
 export async function createPrize(payload: object) {
     
-  const response = await httpClient<BaseApiResponse<object>>('price-config/create-prizes', "", {
+  const response = await httpClient<BaseApiResponse<object>>('prize-config/create-prize', "", {
     method: "post",
     body: payload,
   });
@@ -51,8 +57,8 @@ export async function createPrize(payload: object) {
 
 export async function updatePrize(id: string, payload: object) {
     
-  const response = await httpClient<BaseApiResponse<object>>(`price-config/update-prizes/${id}`, "", {
-    method: "post",
+  const response = await httpClient<BaseApiResponse<object>>(`prize-config/update-prize/${id}`, "", {
+    method: "put",
     body: payload,
   });
   return response.success;
@@ -60,6 +66,6 @@ export async function updatePrize(id: string, payload: object) {
 
 export async function deletePrize(id: string) {
  
-    const response = await httpClient<BaseApiResponse<object>>(`price-config/delete-prizes/${id}`, "", { method: "delete", });
+    const response = await httpClient<BaseApiResponse<object>>(`prize-config/delete-prize/${id}`, "", { method: "delete", });
     return response.success;
 }
