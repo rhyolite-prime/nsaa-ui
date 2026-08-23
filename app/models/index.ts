@@ -133,7 +133,8 @@ export interface Raffle extends BaseEntityModel {
     slug: string;
     status: number;
     totalEntries: number;
-    prizePool: string;
+    expectedRevenue: number;
+    liablity: number;
     winningColour: string;
     scheduledFor: string;
     startsAt: string;

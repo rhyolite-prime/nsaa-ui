@@ -12,6 +12,8 @@ import {
 import type { AffiliatePartner } from "~/models";
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
+import useVuelidate from '@vuelidate/core';
+import { required, minValue, helpers } from '@vuelidate/validators';
 
 const router = useRouter();
 
@@ -29,11 +31,11 @@ const availablePrizesForCategories = computed(() =>
   )
 );
 
-// Sum of (prize value × chosen quantity) for all selected prizes
-const computedPrizePool = computed(() =>
-  form.value.selectedPrizes.reduce((sum, sp) => {
-    const prize = allPrizes.value.find(p => p.id === sp.prizeId);
-    return sum + (prize ? prize.value * sp.quantity : 0);
+// Calculate total liability based on selected prizes
+const computedLiability = computed(() =>
+  form.value.prizeConfiguration.reduce((sum, pc) => {
+    const prize = allPrizes.value.find(p => p.id === pc.prizeId);
+    return sum + (prize ? prize.value * pc.value : 0);
   }, 0)
 );
 
@@ -48,16 +50,53 @@ const steps = [
 const form = ref({
   name: '',
   slug: '',
-  prizePool: 0,
   startTime: '',
   endTime: '',
   drawTime: '',
-  exemptedPartners: [] as string[],
+  maximumWinners: 1,
+  liability: 0,
+  expectedRevenue: 0,
+  exemptedPartnerIds: [] as string[],
   selectedCategories: [] as string[],
-  selectedPrizes: [] as { prizeId: string; quantity: number }[],
-  options: [] as { name: string; value: string }[]
+  prizeConfiguration: [] as { prizeCategoryId: string; prizeId: string; prizeName: string; value: number }[],
+  options: [] as { id: string; name: string }[]
 });
 
+// ─── Vuelidate custom validators ───────────────────────────────────────────
+const endTimeAfterStart = helpers.withMessage(
+  'Sale End must be at least 30 minutes after Sale Start.',
+  () => {
+    if (!form.value.startTime || !form.value.endTime) return true;
+    return new Date(form.value.endTime).getTime() - new Date(form.value.startTime).getTime() >= 30 * 60 * 1000;
+  }
+);
+
+const drawTimeAfterEnd = helpers.withMessage(
+  'Final Draw must be at least 20 minutes after Sale End.',
+  () => {
+    if (!form.value.endTime || !form.value.drawTime) return true;
+    return new Date(form.value.drawTime).getTime() - new Date(form.value.endTime).getTime() >= 20 * 60 * 1000;
+  }
+);
+
+const rules = computed(() => ({
+  name:           { required: helpers.withMessage('Campaign name is required.', required) },
+  startTime:      { required: helpers.withMessage('Sale Start date is required.', required) },
+  endTime:        { required: helpers.withMessage('Sale End date is required.', required), endTimeAfterStart },
+  drawTime:       { required: helpers.withMessage('Final Draw date is required.', required), drawTimeAfterEnd },
+  maximumWinners: {
+    required: helpers.withMessage('Maximum winners is required.', required),
+    minValue: helpers.withMessage('Must be at least 1.', minValue(1))
+  },
+  expectedRevenue: {
+    required: helpers.withMessage('Expected revenue is required.', required),
+    minValue: helpers.withMessage('Must be 0 or greater.', minValue(0))
+  }
+}));
+
+const v$ = useVuelidate(rules, form);
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
 onMounted(async () => {
   try {
     const partnersResult = await getPartners({ pageNo: 1, pageSize: 1000 });
@@ -76,62 +115,77 @@ watch(() => form.value.name, (newName) => {
 });
 
 const isPrizeSelected = (prizeId: string) => {
-  return form.value.selectedPrizes.some(p => p.prizeId === prizeId);
+  return form.value.prizeConfiguration.some(p => p.prizeId === prizeId);
 };
 
 const togglePrizeSelection = (prize: any) => {
-  const index = form.value.selectedPrizes.findIndex(p => p.prizeId === prize.id);
+  const index = form.value.prizeConfiguration.findIndex(p => p.prizeId === prize.id);
   if (index >= 0) {
-    form.value.selectedPrizes.splice(index, 1);
+    form.value.prizeConfiguration.splice(index, 1);
   } else {
-    form.value.selectedPrizes.push({ prizeId: prize.id, quantity: prize.quantity || 1 });
+    form.value.prizeConfiguration.push({ 
+      prizeCategoryId: prize.categoryId,
+      prizeId: prize.id,
+      prizeName: prize.name,
+      value: 1
+    });
   }
 };
 
-const getSelectedPrizeQuantity = (prizeId: string) => {
-  const sp = form.value.selectedPrizes.find(p => p.prizeId === prizeId);
-  return sp ? sp.quantity : 1;
-};
-
-const updatePrizeQuantity = (prizeId: string, quantity: number) => {
-  const sp = form.value.selectedPrizes.find(p => p.prizeId === prizeId);
-  if (sp) {
-    sp.quantity = quantity;
-  }
-};
-
-
-watch(() => form.value.selectedPrizes, () => {
-  if (form.value.selectedPrizes.length > 0) {
-    form.value.prizePool = computedPrizePool.value;
+watch(() => form.value.prizeConfiguration, () => {
+  if (form.value.prizeConfiguration.length > 0) {
+    form.value.liability = computedLiability.value;
   }
 }, { deep: true });
 
 // Step 4 Options Management
+const toOptionId = (name: string) =>
+  name.trim().toLowerCase().replace(/\s+/g, '_');
+
+const updateOptionId = (index: number) => {
+  form.value.options[index].id = toOptionId(form.value.options[index].name);
+};
+
 const addOption = () => {
-  form.value.options.push({ name: '', value: '' });
+  form.value.options.push({ id: '', name: '' });
 };
 
 const removeOption = (index: number) => {
   form.value.options.splice(index, 1);
 };
 
-const validateStep1 = () => {
-  if (!form.value.name || !form.value.startTime || !form.value.endTime || !form.value.drawTime) {
-    toast.error('Please fill in all required basic info fields.');
+// ─── Step navigation ───────────────────────────────────────────────────────
+const validateStep1 = async () => {
+  // Touch only the Step 1 fields
+  v$.value.name.$touch();
+  v$.value.startTime.$touch();
+  v$.value.endTime.$touch();
+  v$.value.drawTime.$touch();
+  v$.value.maximumWinners.$touch();
+
+  const step1Invalid =
+    v$.value.name.$error ||
+    v$.value.startTime.$error ||
+    v$.value.endTime.$error ||
+    v$.value.drawTime.$error ||
+    v$.value.maximumWinners.$error;
+
+  if (step1Invalid) {
+    // First error message wins for the toast
+    const firstError =
+      v$.value.name.$errors[0]?.$message ||
+      v$.value.startTime.$errors[0]?.$message ||
+      v$.value.endTime.$errors[0]?.$message ||
+      v$.value.drawTime.$errors[0]?.$message ||
+      v$.value.maximumWinners.$errors[0]?.$message;
+    toast.error(String(firstError));
     return false;
   }
   return true;
 };
 
-const validateStep3 = () => {
-  // If prize pool is specified, they should ideally select something, or it could be optional
-  return true; 
-};
-
-const nextStep = () => {
-  if (currentStep.value === 1 && !validateStep1()) return;
-  if (currentStep.value === 3 && !validateStep3()) return;
+const nextStep = async () => {
+  if (currentStep.value === 1 && !(await validateStep1())) return;
   if (currentStep.value < steps.length) {
     currentStep.value++;
   }
@@ -148,14 +202,22 @@ const goBack = () => {
 };
 
 const saveRaffleData = async () => {
-  if (!validateStep1()) return;
+  if (!(await validateStep1())) return;
 
   isSaving.value = true;
   try {
     const payload = {
-      ...form.value,
-      // Pass options along if backend supports it, otherwise it might be ignored
-      options: form.value.options.filter(o => o.name.trim() && o.value.trim()) 
+      name: form.value.name,
+      slug: form.value.slug,
+      startTime: form.value.startTime,
+      endTime: form.value.endTime,
+      drawTime: form.value.drawTime,
+      maximumWinners: form.value.maximumWinners,
+      exemptedPartnerIds: form.value.exemptedPartnerIds,
+      options: form.value.options.filter(o => o.id.trim() && o.name.trim()),
+      prizeConfiguration: form.value.prizeConfiguration,
+      liability: form.value.liability,
+      expectedRevenue: form.value.expectedRevenue
     };
     const isSuccessful = await createRaffle(payload);
 
@@ -174,7 +236,7 @@ const saveRaffleData = async () => {
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto space-y-8 font-sans py-8 px-4 sm:px-6">
+  <div class="max-w-8xl mx-auto space-y-8 font-sans py-8 px-4 sm:px-6">
     <!-- Header -->
     <div class="flex items-center gap-4">
       <button 
@@ -241,55 +303,66 @@ const saveRaffleData = async () => {
             <h2 class="text-xl font-black text-slate-900 tracking-tight mb-6">Basic Info</h2>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div class="space-y-2">
+              <div class="space-y-1">
                 <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Campaign Name <span class="text-red-500">*</span></label>
                 <input 
                   v-model="form.name"
                   type="text" 
                   placeholder="e.g. Mabango Grand Raffle" 
-                  class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 text-sm font-bold text-slate-700 transition-all placeholder:text-slate-300"
+                  @blur="v$.name.$touch()"
+                  :class="v$.name.$error ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10 bg-red-50' : 'border-slate-100 focus:border-pink-500 focus:ring-pink-500/10 bg-slate-50'"
+                  class="w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-4 text-sm font-bold text-slate-700 transition-all placeholder:text-slate-300"
                 />
+                <p v-if="v$.name.$error" class="text-xs font-semibold text-red-500 mt-1">{{ v$.name.$errors[0]?.$message }}</p>
               </div>
               
-              <div class="space-y-2">
-                <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Target Prize Pool <span class="text-red-500">*</span></label>
-                <div class="relative">
-                  <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">GHS</span>
-                  <input 
-                    v-model="form.prizePool"
-                    type="number" 
-                    step="0.01"
-                    placeholder="0.00" 
-                    class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 text-sm font-bold text-slate-700 transition-all placeholder:text-slate-300"
-                  />
-                </div>
+              <div class="space-y-1">
+                <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Maximum Winners <span class="text-red-500">*</span></label>
+                <input 
+                  v-model.number="form.maximumWinners"
+                  type="number" 
+                  min="1"
+                  @blur="v$.maximumWinners.$touch()"
+                  :class="v$.maximumWinners.$error ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10 bg-red-50' : 'border-slate-100 focus:border-pink-500 focus:ring-pink-500/10 bg-slate-50'"
+                  class="w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-4 text-sm font-bold text-slate-700 transition-all placeholder:text-slate-300"
+                />
+                <p v-if="v$.maximumWinners.$error" class="text-xs font-semibold text-red-500 mt-1">{{ v$.maximumWinners.$errors[0]?.$message }}</p>
               </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div class="space-y-2">
+              <div class="space-y-1">
                 <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2 whitespace-nowrap">Sale Start <span class="text-red-500">*</span></label>
                 <input 
                   v-model="form.startTime"
                   type="datetime-local" 
-                  class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 text-[13px] font-bold text-slate-700"
+                  @blur="v$.startTime.$touch()"
+                  :class="v$.startTime.$error ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10 bg-red-50' : 'border-slate-100 focus:border-pink-500 focus:ring-pink-500/10 bg-slate-50'"
+                  class="w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-4 text-[13px] font-bold text-slate-700"
                 />
+                <p v-if="v$.startTime.$error" class="text-xs font-semibold text-red-500 mt-1">{{ v$.startTime.$errors[0]?.$message }}</p>
               </div>
-              <div class="space-y-2">
+              <div class="space-y-1">
                 <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2 whitespace-nowrap">Sale End <span class="text-red-500">*</span></label>
                 <input 
                   v-model="form.endTime"
                   type="datetime-local" 
-                  class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 text-[13px] font-bold text-slate-700"
+                  @blur="v$.endTime.$touch()"
+                  :class="v$.endTime.$error ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10 bg-red-50' : 'border-slate-100 focus:border-pink-500 focus:ring-pink-500/10 bg-slate-50'"
+                  class="w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-4 text-[13px] font-bold text-slate-700"
                 />
+                <p v-if="v$.endTime.$error" class="text-xs font-semibold text-red-500 mt-1">{{ v$.endTime.$errors[0]?.$message }}</p>
               </div>
-              <div class="space-y-2">
+              <div class="space-y-1">
                 <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2 whitespace-nowrap text-secondary font-black">Final Draw <span class="text-red-500">*</span></label>
                 <input 
                   v-model="form.drawTime"
                   type="datetime-local" 
-                  class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-secondary/10 focus:border-secondary text-[13px] font-bold text-slate-700"
+                  @blur="v$.drawTime.$touch()"
+                  :class="v$.drawTime.$error ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10 bg-red-50' : 'border-slate-100 focus:border-secondary focus:ring-secondary/10 bg-slate-50'"
+                  class="w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-4 text-[13px] font-bold text-slate-700"
                 />
+                <p v-if="v$.drawTime.$error" class="text-xs font-semibold text-red-500 mt-1">{{ v$.drawTime.$errors[0]?.$message }}</p>
               </div>
             </div>
           </div>
@@ -305,8 +378,8 @@ const saveRaffleData = async () => {
                 class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer flex justify-between items-center hover:border-slate-300 transition-colors"
                 @click="isPartnersDropdownOpen = !isPartnersDropdownOpen"
               >
-                <span class="text-sm font-bold" :class="form.exemptedPartners.length ? 'text-slate-700' : 'text-slate-300'">
-                  {{ form.exemptedPartners.length ? `${form.exemptedPartners.length} partner(s) selected` : 'Select partners to exempt' }}
+                <span class="text-sm font-bold" :class="form.exemptedPartnerIds.length ? 'text-slate-700' : 'text-slate-300'">
+                  {{ form.exemptedPartnerIds.length ? `${form.exemptedPartnerIds.length} partner(s) selected` : 'Select partners to exempt' }}
                 </span>
                 <ChevronDownIcon class="w-4 h-4 text-slate-400 transition-transform" :class="{ 'rotate-180': isPartnersDropdownOpen }" />
               </div>
@@ -326,7 +399,7 @@ const saveRaffleData = async () => {
                   <input 
                     type="checkbox" 
                     :value="partner.id" 
-                    v-model="form.exemptedPartners"
+                    v-model="form.exemptedPartnerIds"
                     class="w-4 h-4 text-pink-600 rounded border-slate-300 focus:ring-pink-500"
                   />
                   <span class="text-sm font-bold text-slate-700">{{ partner.name }}</span>
@@ -378,13 +451,12 @@ const saveRaffleData = async () => {
                     </div>
                   </label>
                   <div v-if="isPrizeSelected(prize.id)" class="flex items-center gap-2">
-                    <span class="text-[10px] font-black uppercase text-slate-400">Qty</span>
+                    <span class="text-[10px] font-black uppercase text-slate-400">Quantity</span>
                     <input 
                       type="number" 
                       min="1"
-                      :value="getSelectedPrizeQuantity(prize.id)"
-                      @input="(e) => updatePrizeQuantity(prize.id, parseInt((e.target as HTMLInputElement).value) || 1)"
-                      class="w-16 px-2 py-1 text-center bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-pink-500/20"
+                      v-model.number="form.prizeConfiguration.find(p => p.prizeId === prize.id)!.value"
+                      class="w-24 px-2 py-1 text-right bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-pink-500/20"
                     />
                   </div>
                 </div>
@@ -392,6 +464,36 @@ const saveRaffleData = async () => {
             </div>
             <div v-else class="text-center p-8 border border-dashed border-slate-200 rounded-2xl">
               <p class="text-sm font-medium text-slate-400">Select a category above to view available prizes.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-100">
+              <div class="space-y-2">
+                <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Liability <span class="text-red-500">*</span></label>
+                <div class="relative">
+                  <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">GHS</span>
+                  <input 
+                    v-model.number="form.liability"
+                    type="number" 
+                    step="0.01"
+                    placeholder="0.00" 
+                    class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 text-sm font-bold text-slate-700 transition-all placeholder:text-slate-300"
+                  />
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <label class="block text-xs font-black uppercase tracking-wider text-slate-500 mb-2">Expected Revenue <span class="text-red-500">*</span></label>
+                <div class="relative">
+                  <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">GHS</span>
+                  <input 
+                    v-model.number="form.expectedRevenue"
+                    type="number" 
+                    step="0.01"
+                    placeholder="0.00" 
+                    class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 text-sm font-bold text-slate-700 transition-all placeholder:text-slate-300"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -406,18 +508,20 @@ const saveRaffleData = async () => {
                   <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500">Option Name</label>
                   <input 
                     v-model="option.name"
+                    @input="updateOptionId(index)"
                     type="text" 
-                    placeholder="e.g. VIP Access" 
+                    placeholder="e.g. Red" 
                     class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 text-sm font-bold text-slate-700"
                   />
                 </div>
                 <div class="flex-1 space-y-2">
-                  <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500">Option Value</label>
+                  <label class="block text-[10px] font-black uppercase tracking-wider text-slate-500">Option ID</label>
                   <input 
-                    v-model="option.value"
-                    type="text" 
-                    placeholder="e.g. 500" 
-                    class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 text-sm font-bold text-slate-700"
+                    v-model="option.id"
+                    type="text"
+                    readonly
+                    placeholder="auto-generated"
+                    class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-400 cursor-not-allowed select-none"
                   />
                 </div>
                 <button 

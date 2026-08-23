@@ -12,8 +12,12 @@ import {
   XMarkIcon,
   PencilIcon,
   TrashIcon,
-  TrophyIcon
+  TrophyIcon,
+  BoltIcon,
+  ClockIcon as ScheduledIcon,
+  LockClosedIcon,
 } from '@heroicons/vue/24/outline';
+import { SparklesIcon } from '@heroicons/vue/24/solid';
 
 import type { Raffle } from "~/models";
 import { isEmpty, debounce } from "lodash-es";
@@ -30,7 +34,7 @@ const route = useRoute();
 
 const filters = reactive({
   query: '',
-  status: '',
+  status: -1,
   startDate: '',
   endDate: '',
   pageNo: 1,
@@ -79,14 +83,46 @@ const onPageChange = async (pageNumber: number) => {
   await getPaginatedRaffles();
 };
 
-const getStatusClass = (status: number) => {
-  switch (status) {
-    case 0 : return 'bg-blue-100 text-blue-700';
-    case 2: return 'bg-emerald-100 text-emerald-700';
-    case 1: return 'bg-slate-100 text-slate-600';
-    default: return 'bg-slate-100 text-slate-600';
-  }
+enum RaffleStatus {
+  ACTIVE = 0,
+  SCHEDULED = 1,
+  DRAW_COMPLETED = 2,
+  CLOSED = 3,
+}
+
+const statusConfig: Record<number, { label: string; pill: string; dot: string; icon: any; pulse: boolean }> = {
+  [RaffleStatus.ACTIVE]: {
+    label: 'Active',
+    pill: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
+    dot: 'bg-emerald-500',
+    icon: BoltIcon,
+    pulse: true,
+  },
+  [RaffleStatus.SCHEDULED]: {
+    label: 'Scheduled',
+    pill: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
+    dot: 'bg-blue-400',
+    icon: ScheduledIcon,
+    pulse: false,
+  },
+  [RaffleStatus.DRAW_COMPLETED]: {
+    label: 'Draw Completed',
+    pill: 'bg-violet-50 text-violet-700 ring-1 ring-violet-200',
+    dot: 'bg-violet-500',
+    icon: SparklesIcon,
+    pulse: false,
+  },
+  [RaffleStatus.CLOSED]: {
+    label: 'Closed',
+    pill: 'bg-slate-100 text-slate-500 ring-1 ring-slate-200',
+    dot: 'bg-slate-400',
+    icon: LockClosedIcon,
+    pulse: false,
+  },
 };
+
+const getStatusConfig = (status: number) =>
+  statusConfig[status] ?? statusConfig[RaffleStatus.CLOSED];
 
 const debouncedSearch = debounce(() => {
     filters.pageNo = 1; // Reset to first page for new search
@@ -182,11 +218,11 @@ const confirmDelete = async () => {
             v-model="filters.status"
             class="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-xs font-black uppercase tracking-wider text-slate-600 appearance-none cursor-pointer transition-all"
           >
-            <option value="">All Statuses</option>
-            <option value="SCHEDULED">Scheduled</option>
-            <option value="ACTIVE">Active</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
+            <option value="-1">All Statuses</option>
+            <option value="1">Scheduled</option>
+            <option value="0">Active</option>
+            <option value="2">Completed</option>
+            <option value="3">Closed</option>
           </select>
           <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
             <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -227,25 +263,23 @@ const confirmDelete = async () => {
 
     <!-- Raffle Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 relative min-h-[400px]">
-      <TransitionGroup 
-        enter-active-class="transition duration-500 ease-out"
-        enter-from-class="transform scale-95 opacity-0"
-        enter-to-class="transform scale-100 opacity-100"
-        leave-active-class="transition duration-300 ease-in"
-        leave-from-class="transform scale-100 opacity-100"
-        leave-to-class="transform scale-95 opacity-0">
-        <!-- Loading State -->
-        <template v-if="isShimmerLoading">
-          <RaffleSkeleton v-for="i in 3" :key="`skeleton-${i}`" />
-        </template>
-
-        <!-- Data State -->
-        <template v-if="!isShimmerLoading">
-          <div v-for="raffle in raffleList" :key="raffle.id" class="bg-white rounded-3xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 group">
+     
+      <div v-for="raffle in raffleList" :key="raffle.id" class="bg-white rounded-3xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-300 group">
             <div class="p-8">
               <div class="flex justify-between items-start mb-6">
-                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest" :class="getStatusClass(raffle.status)">
-                  {{ raffle.status }}
+                <!-- Status badge -->
+                <span
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+                  :class="getStatusConfig(raffle.status).pill"
+                >
+                  <span
+                    class="w-1.5 h-1.5 rounded-full shrink-0"
+                    :class="[
+                      getStatusConfig(raffle.status).dot,
+                      getStatusConfig(raffle.status).pulse ? 'animate-pulse' : ''
+                    ]"
+                  />
+                  {{ getStatusConfig(raffle.status).label }}
                 </span>
                 <div v-if="raffle.status !== '1'" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <NuxtLink 
@@ -269,13 +303,13 @@ const confirmDelete = async () => {
               <div class="grid grid-cols-2 gap-4 mb-8">
 
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-1">Prize Pool</p>
-                  <p class="text-sm font-black text-slate-800 tracking-tight">{{ _currency(raffle.prizePool) }}</p>
+                  <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-1">Liability</p>
+                  <p class="text-sm font-black text-slate-800 tracking-tight">{{ _currency(raffle.liablity) }}</p>
                 </div>
 
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-1">Entries</p>
-                  <p class="text-sm font-black text-slate-800 tracking-tight">{{ toNumber(raffle.totalEntries) }}</p>
+                  <p class="text-[9px] uppercase tracking-widest text-slate-400 font-black mb-1">Expected Revenue</p>
+                  <p class="text-sm font-black text-slate-800 tracking-tight">{{ _currency(raffle.expectedRevenue) }}</p>
                 </div>
 
               </div>
@@ -342,20 +376,19 @@ const confirmDelete = async () => {
                  Manage Draw
                  <ChevronRightIcon class="w-4 h-4" />
               </NuxtLink>
-              <PlayIcon v-if="raffle.status === 'Active'" class="w-5 h-5 text-secondary animate-pulse" />
+              <PlayIcon v-if="raffle.status === 0" class="w-5 h-5 text-emerald-500 animate-pulse" />
             </div>
           </div>
 
           <!-- Empty State (Optional) -->
-          <div v-if="raffleList.length === 0" class="col-span-full py-20 flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-100 border-dashed">
+          <div v-if="raffleList.length === 0 && !isShimmerLoading" class="col-span-full py-20 flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-100 border-dashed">
             <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-4">
               <TrophyIcon class="w-8 h-8" />
             </div>
             <p class="text-slate-500 font-black uppercase tracking-widest text-xs">No Raffles Found</p>
             <p class="text-slate-400 text-[10px] font-medium mt-1">Try adjusting your filters or search query.</p>
           </div>
-        </template>
-      </TransitionGroup>
+     
     </div>
 
     <!-- Pagination -->

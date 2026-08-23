@@ -71,7 +71,7 @@ export async function getRaffleRngLogs(id: string) {
 
 export async function deleteRaffle(id: string) {
  
-    const response = await httpClient<BaseApiResponse<object>>(`raffle/delete?id=${id}`, "", { method: "delete", });
+    const response = await httpClient<BaseApiResponse<object>>(`raffle/delete/${id}`, "", { method: "delete", });
     return response.success;
 }
 
