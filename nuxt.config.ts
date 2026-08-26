@@ -4,6 +4,12 @@ export default defineNuxtConfig({
   future: {
     compatibilityVersion: 4,
   },
+  nitro: {
+    inlineDynamicImports: true,
+    externals: {
+      inline: ['unhead', '@unhead/vue', '@unhead/ssr']
+    }
+  },
   devtools: { enabled: true },
   app: {
     head: {

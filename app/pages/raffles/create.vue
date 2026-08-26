@@ -59,7 +59,12 @@ const form = ref({
   exemptedPartnerIds: [] as string[],
   selectedCategories: [] as string[],
   prizeConfiguration: [] as { prizeCategoryId: string; prizeId: string; prizeName: string; value: number }[],
-  options: [] as { id: string; name: string }[]
+  options: [
+    { id: 'red', name: 'Red' },
+    { id: 'gold', name: 'Gold' },
+    { id: 'green', name: 'Green' },
+    { id: 'black', name: 'Black' }
+  ] as { id: string; name: string }[]
 });
 
 // ─── Vuelidate custom validators ───────────────────────────────────────────

@@ -113,6 +113,7 @@ export interface Ticket extends BaseEntityModel {
 
     ticketNumber: string;
     drawId: string;
+    ticketAlias: string;
     customerId: string;
     colourId: string;
     entryFee: string;

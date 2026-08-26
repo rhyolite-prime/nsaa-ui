@@ -12,7 +12,7 @@ import {
   CalendarIcon
 } from '@heroicons/vue/24/outline';
 
-import type { Ticket, TicketStats, Raffle } from "~/models";
+import type { Ticket, Raffle } from "~/models";
 import { isEmpty, debounce } from "lodash-es";
 
 import { toast } from 'vue3-toastify';
@@ -56,7 +56,6 @@ const getPaginatedTickets = async () => {
     try {
 
         let result = await getTickets(filters);
-        ticketStats.value = await getTicketStats();
 
         ticketList.value = result.data;
 
@@ -82,6 +81,12 @@ const onPageChange = async (pageNumber: number) => {
 };
 
 
+enum PaymentStatus {
+  PAYMENT_INITIATED = 0,
+  SUCCESS = 1,
+  PAYMENT_FAILED = 2,
+}
+
 const getColorBadge = (color: string) => {
   switch (color) {
     case 'Red': return 'bg-red-50 text-red-700 border-red-100';
@@ -92,12 +97,23 @@ const getColorBadge = (color: string) => {
   }
 };
 
-const getStatusBadge = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'PAID': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-    case 'PENDING': return 'bg-amber-50 text-amber-700 border-amber-100';
-    case 'CANCELLED': return 'bg-red-50 text-red-700 border-red-100';
+const getStatusBadge = (status: PaymentStatus | string | number) => {
+  const statusNum = Number(status);
+  switch (statusNum) {
+    case PaymentStatus.SUCCESS: return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    case PaymentStatus.PAYMENT_INITIATED: return 'bg-amber-50 text-amber-700 border-amber-100';
+    case PaymentStatus.PAYMENT_FAILED: return 'bg-red-50 text-red-700 border-red-100';
     default: return 'bg-slate-50 text-slate-600 border-slate-100';
+  }
+};
+
+const getStatusText = (status: PaymentStatus | string | number) => {
+  const statusNum = Number(status);
+  switch (statusNum) {
+    case PaymentStatus.SUCCESS: return 'PAID';
+    case PaymentStatus.PAYMENT_INITIATED: return 'PENDING';
+    case PaymentStatus.PAYMENT_FAILED: return 'FAILED';
+    default: return 'UNKNOWN';
   }
 };
 
@@ -123,7 +139,7 @@ const debouncedSearch = debounce(() => {
     }
     
     await getPaginatedTickets();
-    await getActiveRaffleData();
+   
 
   });
 
@@ -169,9 +185,9 @@ const debouncedSearch = debounce(() => {
               class="w-full pl-10 pr-4 py-3 bg-white border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-slate-500/5 focus:border-slate-500 text-xs font-black uppercase tracking-wider text-slate-600 appearance-none cursor-pointer transition-all"
             >
               <option value="">All Statuses</option>
-              <option value="PAID">Paid</option>
-              <option value="PENDING">Pending</option>
-              <option value="CANCELLED">Cancelled</option>
+              <option value="1">Paid</option>
+              <option value="0">Pending</option>
+              <option value="2">Failed</option>
             </select>
             <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
               <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -217,7 +233,7 @@ const debouncedSearch = debounce(() => {
               <th class="px-8 py-5">Ticket ID</th>
               <th class="px-8 py-5">Customer</th>
               <th class="px-8 py-5">Purchase Date</th>
-              <th class="px-8 py-5">Selected Color</th>
+              <th class="px-8 py-5">Selected Option</th>
               <th class="px-8 py-5">Quantity</th>
               <th class="px-8 py-5 text-right">Amount</th>
               <th class="px-8 py-5 text-center">Status</th>
@@ -241,7 +257,7 @@ const debouncedSearch = debounce(() => {
               </tr>
             </template>
             <tr v-else v-for="ticket in ticketList" :key="ticket.id" class="hover:bg-slate-50/50 transition-colors group">
-              <td class="px-8 py-5 font-bold text-slate-900 tracking-tight">{{ ticket.ticketNumber }}</td>
+              <td class="px-8 py-5 font-bold text-slate-900 tracking-tight">{{ ticket.ticketNumber }} ({{ ticket.ticketAlias }})</td>
               <td class="px-8 py-5">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
@@ -258,20 +274,15 @@ const debouncedSearch = debounce(() => {
               </td>
               <td class="px-8 py-5">
                 <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border tracking-widest inline-flex items-center gap-2" :class="getColorBadge(ticket.colourName)">
-                   <span class="w-1.5 h-1.5 rounded-full shadow-sm" :class="[
-                      ticket.colourName === 'Red' ? 'bg-red-500' :
-                      ticket.colourName === 'Gold' ? 'bg-amber-500' :
-                      ticket.colourName === 'Black Star' ? 'bg-black-500' :
-                      ticket.colourName === 'Green' ? 'bg-emerald-500' : 'bg-slate-600'
-                   ]"></span>
-                   {{ ticket.colourName }}
+                   <span class="w-1.5 h-1.5 rounded-full shadow-sm bg-slate-600"></span>
+                   {{ ticket.selectedOptionName }}
                 </span>
               </td>
               <td class="px-8 py-5 font-black text-slate-900">{{ ticket.quantity }}</td>
               <td class="px-8 py-5 font-black text-slate-900 text-right">{{ ticket.totalAmount }}</td>
               <td class="px-8 py-5 text-center">
                 <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border tracking-widest inline-flex items-center" :class="getStatusBadge(ticket.paymentStatus)">
-                  {{ ticket.paymentStatus }}
+                  {{ getStatusText(ticket.paymentStatus) }}
                 </span>
               </td>
             </tr>
