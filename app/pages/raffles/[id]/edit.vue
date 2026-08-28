@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import RaffleForm from '~/components/RaffleForm.vue';
 import { ChevronLeftIcon } from '@heroicons/vue/24/outline';
-import { getRaffleDetails } from '~/services/raffles';
 import type { Raffle } from '~/models';
 import { toast } from 'vue3-toastify';
 

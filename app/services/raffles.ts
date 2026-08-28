@@ -1,4 +1,4 @@
-import type { Raffle, RaffleWinner, RaffleDetails, RaffleDrawResponse, TopTicketHoldersResponse, TopTicketHolder,  BaseApiResponse, BasePaginationModel, Ticket, TicketStats, RngLog } from "~/models";
+import type { Raffle, RaffleWinner, RaffleDrawDetails, RaffleDrawResponse, TopTicketHoldersResponse, TopTicketHolder,  BaseApiResponse, BasePaginationModel, Ticket, TicketStats, RngLog } from "~/models";
 
 
 export async function getRaffles(query: object) {
@@ -13,9 +13,16 @@ export async function getActiveRaffle() {
     return response.result;
 }
 
+export async function getRaffleDrawDetails(id: string) {
+
+    const response = await httpClient<BaseApiResponse<RaffleDrawDetails>>(`raffle/draw-details/${id}`, "");
+    return response.result;
+}
+
+
 export async function getRaffleDetails(id: string) {
 
-    const response = await httpClient<BaseApiResponse<RaffleDetails>>(`raffle/get-details?id=${id}`, "");
+    const response = await httpClient<BaseApiResponse<any>>(`raffle/details/${id}`, "");
     return response.result;
 }
 

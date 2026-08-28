@@ -13,16 +13,13 @@ import {
   PencilIcon,
   TrashIcon,
   TrophyIcon,
-  BoltIcon,
-  ClockIcon as ScheduledIcon,
-  LockClosedIcon,
 } from '@heroicons/vue/24/outline';
-import { SparklesIcon } from '@heroicons/vue/24/solid';
 
 import type { Raffle } from "~/models";
 import { isEmpty, debounce } from "lodash-es";
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
+import { getRaffleStatusConfig } from '~/utils/statusConfig';
 
 useHead({
   title: 'Raffles | NSAA BO'
@@ -83,46 +80,7 @@ const onPageChange = async (pageNumber: number) => {
   await getPaginatedRaffles();
 };
 
-enum RaffleStatus {
-  ACTIVE = 0,
-  SCHEDULED = 1,
-  DRAW_COMPLETED = 2,
-  CLOSED = 3,
-}
-
-const statusConfig: Record<number, { label: string; pill: string; dot: string; icon: any; pulse: boolean }> = {
-  [RaffleStatus.ACTIVE]: {
-    label: 'Active',
-    pill: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
-    dot: 'bg-emerald-500',
-    icon: BoltIcon,
-    pulse: true,
-  },
-  [RaffleStatus.SCHEDULED]: {
-    label: 'Scheduled',
-    pill: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
-    dot: 'bg-blue-400',
-    icon: ScheduledIcon,
-    pulse: false,
-  },
-  [RaffleStatus.DRAW_COMPLETED]: {
-    label: 'Draw Completed',
-    pill: 'bg-violet-50 text-violet-700 ring-1 ring-violet-200',
-    dot: 'bg-violet-500',
-    icon: SparklesIcon,
-    pulse: false,
-  },
-  [RaffleStatus.CLOSED]: {
-    label: 'Closed',
-    pill: 'bg-slate-100 text-slate-500 ring-1 ring-slate-200',
-    dot: 'bg-slate-400',
-    icon: LockClosedIcon,
-    pulse: false,
-  },
-};
-
-const getStatusConfig = (status: number) =>
-  statusConfig[status] ?? statusConfig[RaffleStatus.CLOSED];
+// Status display config is shared — see ~/utils/statusConfig.ts
 
 const debouncedSearch = debounce(() => {
     filters.pageNo = 1; // Reset to first page for new search
@@ -270,18 +228,18 @@ const confirmDelete = async () => {
                 <!-- Status badge -->
                 <span
                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
-                  :class="getStatusConfig(raffle.status).pill"
+                  :class="getRaffleStatusConfig(raffle.status).pill"
                 >
                   <span
                     class="w-1.5 h-1.5 rounded-full shrink-0"
                     :class="[
-                      getStatusConfig(raffle.status).dot,
-                      getStatusConfig(raffle.status).pulse ? 'animate-pulse' : ''
+                      getRaffleStatusConfig(raffle.status).dot,
+                      getRaffleStatusConfig(raffle.status).pulse ? 'animate-pulse' : ''
                     ]"
                   />
-                  {{ getStatusConfig(raffle.status).label }}
+                  {{ getRaffleStatusConfig(raffle.status).label }}
                 </span>
-                <div v-if="raffle.status !== '1'" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div v-if="raffle.status === 1" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <NuxtLink 
                     :to="`/raffles/${raffle.id}/edit`"
                     class="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors inline-block"
@@ -372,7 +330,7 @@ const confirmDelete = async () => {
             </div>
             
             <div class="px-8 py-5 bg-slate-50 border-t border-slate-100 flex justify-between items-center group-hover:bg-primary-50 transition-colors">
-              <NuxtLink :to="`/raffles/${raffle.id}`" class="text-[11px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-800 flex items-center gap-2">
+              <NuxtLink :to="`/raffles/${raffle.id}/manage-draw`" class="text-[11px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-800 flex items-center gap-2">
                  Manage Draw
                  <ChevronRightIcon class="w-4 h-4" />
               </NuxtLink>

@@ -2,7 +2,6 @@
 import { 
   MagnifyingGlassIcon, 
   FunnelIcon, 
-  ArrowDownTrayIcon,
   TicketIcon,
   TagIcon,
   ClockIcon,
@@ -17,6 +16,11 @@ import { isEmpty, debounce } from "lodash-es";
 
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
+import {
+  getStatusBadge,
+  getStatusText,
+  getColorBadge,
+} from '~/utils/statusConfig';
 
 useHead({
   title: 'Tickets | NSAA BO'
@@ -81,41 +85,7 @@ const onPageChange = async (pageNumber: number) => {
 };
 
 
-enum PaymentStatus {
-  PAYMENT_INITIATED = 0,
-  SUCCESS = 1,
-  PAYMENT_FAILED = 2,
-}
-
-const getColorBadge = (color: string) => {
-  switch (color) {
-    case 'Red': return 'bg-red-50 text-red-700 border-red-100';
-    case 'Gold': return 'bg-amber-50 text-amber-700 border-amber-100';
-    case 'Green': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-    case 'Black Star': return 'bg-slate-100 text-slate-800 border-slate-200';
-    default: return 'bg-slate-50 text-slate-600 border-slate-100';
-  }
-};
-
-const getStatusBadge = (status: PaymentStatus | string | number) => {
-  const statusNum = Number(status);
-  switch (statusNum) {
-    case PaymentStatus.SUCCESS: return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-    case PaymentStatus.PAYMENT_INITIATED: return 'bg-amber-50 text-amber-700 border-amber-100';
-    case PaymentStatus.PAYMENT_FAILED: return 'bg-red-50 text-red-700 border-red-100';
-    default: return 'bg-slate-50 text-slate-600 border-slate-100';
-  }
-};
-
-const getStatusText = (status: PaymentStatus | string | number) => {
-  const statusNum = Number(status);
-  switch (statusNum) {
-    case PaymentStatus.SUCCESS: return 'PAID';
-    case PaymentStatus.PAYMENT_INITIATED: return 'PENDING';
-    case PaymentStatus.PAYMENT_FAILED: return 'FAILED';
-    default: return 'UNKNOWN';
-  }
-};
+// Status display config is shared — see ~/utils/statusConfig.ts
 
 const debouncedSearch = debounce(() => {
     filters.pageNo = 1; // Reset to first page for new search

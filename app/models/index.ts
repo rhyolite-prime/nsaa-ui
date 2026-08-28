@@ -103,10 +103,10 @@ export interface CustomerStats {
 
 export interface TicketStats {
 
-    activeTickets: number;
-    conversionRate: number;
-    totalRevenue: string;
     totalTickets: number;
+    activeTickets: number;
+    conversionRate: string;
+    totalRevenue: number;
 }
 
 export interface Ticket extends BaseEntityModel {
@@ -141,74 +141,21 @@ export interface Raffle extends BaseEntityModel {
     startsAt: string;
     endsAt: string;
     drawTime: string;
+    options: [];
     createdAt: string;
     exemptedPartners?: string[];
 }
 
-export interface RaffleDetails extends BaseEntityModel {
 
-    name: string;
-    slug: string;
-    status: string;
-    totalEntries: number;
-    prizePool: string;
-    winningColour: string;
-    startsAt: string;
-    endsAt: string;
-    drawTime: string;
-    createdAt: string;
-    prizeWinnerTiers: PrizeWinnerTier[];
-    draw: Draw;
-    drawSummary: DrawSummary;
-    exemptedPartners?: string[];
+export interface RaffleDrawDetails extends BaseEntityModel {
+
+    raffle: Raffle;
+    topTicketHolders: [];
+    winners: [];
+
 }
 
-export interface DrawSummary {
-    drawId: string;
-    generatedValue: string;
-    id: string;
-    metadata: DrawSummaryMetaData;
-    rngType: string;
-}
-
-
-export interface DrawSummaryMetaData {
-
-    cashbackRecipients: number;
-    drawCode: string;
-    drawId: string;
-    tier2WinnersCount: number;
-    tier3WinnersCount: number;
-    id: string;
-    timestamp: string;
-    totalPrizesDistributed: string;
-    ultimateWinnerCustomer: UltimateWinnerCustomer;
-    ultimateWinnerTicketId: string;
-    winningColour: string;
-    winningColourId: string;
-    winningColourTicketId: string;
-    winningColourTicketNumber: string;
-    
-}
-
-export interface Draw {
-    alias: string;
-    completedAt: string;
-    createdAt: string;
-    drawCode: string;
-    drawDate: string;
-    id: string;
-    raffleId: string;
-    status: string;
-    winningColour: string;
-    winningColourId: string;
-}
-
-export interface PrizeWinnerTier {
-    amount: number;
-    name: string;
-    winners: number;
-}
+ 
 
 
 export interface User extends BaseEntityModel {
@@ -262,13 +209,7 @@ export interface TopTicketHolder {
     totalTickets: number;
 }
 
-export interface UltimateWinnerCustomer  {
-    customerId: string;
-    msisdn: string;
-    name: string;
-}
-
-
+ 
 
 
 
