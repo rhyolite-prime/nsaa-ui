@@ -4,6 +4,12 @@ export default defineNuxtConfig({
   future: {
     compatibilityVersion: 4,
   },
+  nitro: {
+    inlineDynamicImports: true,
+    externals: {
+      inline: ['unhead', '@unhead/vue', '@unhead/ssr']
+    }
+  },
   devtools: { enabled: true },
   app: {
     head: {
@@ -31,8 +37,8 @@ export default defineNuxtConfig({
     public: {
       microsoftClientId: process.env.NUXT_MICROSOFT_CLIENT_ID || '',
       googleClientId: process.env.NUXT_GOOGLE_CLIENT_ID || '',
-      proxyApiBaseURL: "https://nsaa-api.rhyoliteprime.com/api/v1/",
-      //proxyApiBaseURL: "http://localhost:5044/api/v1/",
+      //proxyApiBaseURL: "https://nsaa-api.rhyoliteprime.com/api/v1/",
+      proxyApiBaseURL: "http://localhost:5044/api/v1/",
     },
   },
 })

@@ -11,16 +11,42 @@ import {
   SwatchIcon,
   QueueListIcon,
   ChevronDownIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  BuildingOfficeIcon,
+  UserPlusIcon,
+  CheckBadgeIcon,
+  DocumentTextIcon,
+  PhotoIcon,
+  RectangleGroupIcon,
+  GiftIcon,
+  QuestionMarkCircleIcon,
+  FolderIcon,
+  ChatBubbleLeftIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/vue/24/outline';
+
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Squares2X2Icon },
+  { name: 'Prizes', href: '/prizes', icon: QueueListIcon },
   { name: 'Raffles', href: '/raffles', icon: TrophyIcon },
-  { name: 'Tickets', href: '/tickets', icon: TicketIcon },
+  { 
+    name: 'Tickets', 
+    icon: TicketIcon,
+    children: [
+      { name: 'Ticket Explorer', href: '/tickets/explorer', icon: MagnifyingGlassIcon },
+      { name: 'Groups', href: '/tickets/groups', icon: CheckBadgeIcon },
+    ]
+  },
   { name: 'Customers', href: '/customers', icon: UsersIcon },
-  { name: 'Colors', href: '/colors', icon: SwatchIcon },
-  { name: 'Price Tiers', href: '/price-tiers', icon: QueueListIcon },
+  { 
+    name: 'Affiliate Partners', 
+    icon: BuildingOfficeIcon,
+    children: [
+      { name: 'Applicants', href: '/partners/applicants', icon: UserPlusIcon },
+      { name: 'Approved Partners', href: '/partners', icon: CheckBadgeIcon },
+    ]
+  },
   { name: 'Winners', href: '/winners', icon: TrophyIcon },
   { name: 'Disbursements', href: '/disbursements', icon: CreditCardIcon },
   { 
@@ -29,6 +55,18 @@ const navigation = [
     children: [
       { name: 'Roles', href: '/users/roles', icon: UserGroupIcon },
       { name: 'Users', href: '/users', icon: UsersIcon },
+    ]
+  },
+  { 
+    name: 'CMS', 
+    icon: DocumentTextIcon,
+    children: [
+      { name: 'Sliders', href: '/cms/sliders', icon: PhotoIcon },
+      { name: 'Banners', href: '/cms/banners', icon: RectangleGroupIcon },
+      //{ name: 'Prizes', href: '/cms/prizes', icon: GiftIcon },
+      { name: 'FAQs', href: '/cms/faqs', icon: QuestionMarkCircleIcon },
+      { name: 'Media Library', href: '/cms/media-library', icon: FolderIcon },
+      { name: 'Support Tickets', href: '/cms/support-tickets', icon: ChatBubbleLeftIcon },
     ]
   },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
@@ -63,14 +101,16 @@ onMounted(() => {
 <template>
   <aside class="w-64 bg-primary-900 text-white flex flex-col h-screen fixed left-0 top-0 z-40">
     <div class="p-6">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center flex-shrink-0 animate-pulse font-bold text-xl">
-           C
+      <div class="flex flex-col items-center gap-1">
+        <!-- Added overflow-hidden to ensure any image overflow gets clipped perfectly -->
+        <div class="bg-white rounded-full p-2 inline-flex items-center justify-center">
+          <img 
+            src="/logo.png" 
+            alt="Chop Money Logo" 
+            class="w-12 h-12 rounded-full object-cover" 
+          />
         </div>
-        <div>
-          <h1 class="font-bold text-lg leading-tight uppercase tracking-tight">Chop Money</h1>
-          <p class="text-[10px] uppercase font-bold text-primary-300 opacity-70">Admin Panel</p>
-        </div>
+        <p class="text-[10px] uppercase font-bold text-primary-300 opacity-70 mt-1">Admin Panel</p>
       </div>
     </div>
 

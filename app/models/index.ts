@@ -64,15 +64,16 @@ export interface Role extends BaseEntityModel {
 }
 
 
-export interface PriceTier extends BaseEntityModel {
+export interface PriceCategory extends BaseEntityModel {
 
-    tierName: string;
-    tierLevel: string;
+    name: string;
+    code: string;
     description: string;
-    prizeAmount: number;
-    prizePercentage: number;
-    numberOfWinners: number;
-    isCashBack: boolean;
+    priority: number;
+    maxWinners: number;
+    rewardType: number;
+    is_repeatable: boolean;
+    is_active: boolean;
 
 }
 
@@ -102,16 +103,17 @@ export interface CustomerStats {
 
 export interface TicketStats {
 
-    activeTickets: number;
-    conversionRate: number;
-    totalRevenue: string;
     totalTickets: number;
+    activeTickets: number;
+    conversionRate: string;
+    totalRevenue: number;
 }
 
 export interface Ticket extends BaseEntityModel {
 
     ticketNumber: string;
     drawId: string;
+    ticketAlias: string;
     customerId: string;
     colourId: string;
     entryFee: string;
@@ -130,40 +132,30 @@ export interface Raffle extends BaseEntityModel {
 
     name: string;
     slug: string;
-    status: string; // completed, active, upcoming, scheduled, DRAW IN PROGRESS
+    status: number;
     totalEntries: number;
-    prizePool: string;
+    expectedRevenue: number;
+    liablity: number;
     winningColour: string;
     scheduledFor: string;
     startsAt: string;
     endsAt: string;
     drawTime: string;
+    options: [];
     createdAt: string;
-    
-}
-
-export interface RaffleDetails extends BaseEntityModel {
-
-    name: string;
-    slug: string;
-    status: string;
-    totalEntries: number;
-    prizePool: string;
-    winningColour: string;
-    startsAt: string;
-    endsAt: string;
-    drawTime: string;
-    createdAt: string;
-    prizeWinnerTiers: PrizeWinnerTier[];
-}
-
-export interface PrizeWinnerTier {
-    amount: number;
-    name: string;
-    winners: number;
+    exemptedPartners?: string[];
 }
 
 
+export interface RaffleDrawDetails extends BaseEntityModel {
+
+    raffle: Raffle;
+    topTicketHolders: [];
+    winners: [];
+
+}
+
+ 
 
 
 export interface User extends BaseEntityModel {
@@ -200,6 +192,13 @@ export interface RaffleDrawResponse extends BaseEntityModel {
     winningColourTicketNumber: string;
 }
 
+
+export interface TopTicketHoldersResponse {
+    
+    data: TopTicketHolder[];
+    totalValidEntries: number;
+}
+
 export interface TopTicketHolder {
     
     firstName: string;
@@ -208,28 +207,19 @@ export interface TopTicketHolder {
     msisdn: string;
     ticketNumber: string;
     totalTickets: number;
-    
 }
 
-
-
-export interface UltimateWinnerCustomer  {
-    customerId: string;
-    msisdn: string;
-    name: string;
-}
+ 
 
 
 
-
-
-export interface RngLogs {
+export interface RngLog extends BaseEntityModel {
+    drawId: string;
+    generatedAt: string;
+    generatedValue: string;
+    metadata: any;
     rngType: string;
     seedValue: string;
-    generatedValue: string;
-    metaData: object;
-    generatedAt: string;
-    createdBy: string;
 }
 
 
@@ -248,4 +238,86 @@ export interface PermissionResponse {
 export interface Permission {
     systemName: string;
     displayName: string;
+}
+
+export interface AffiliatePartner extends BaseEntityModel {
+    name: string;
+    identifier: string;
+    contactName: string;
+    contactEmail: string;
+    contactPhone: string;
+    billingEmail: string;
+    country: string;
+    currency: string;
+    status: string;
+    ussdCode: string;
+    wssdServiceUrl?: string;
+    subAccountEnabled: boolean;
+    requireTwoFactorAuth: boolean;
+    organizationLogo?: string;
+    commissionRate: number;
+    commissionType: 'percentage' | 'fixed';
+    paymentDueDate?: number;
+    minimumPayoutThreshold: number;
+    paymentMethod?: string;
+    bankDetails?: any;
+    maxRafflesPerDay?: number;
+    allowedRaffleCategories?: string[];
+    requiresApproval: boolean;
+    totalTicketsSold?: number;
+    totalRevenueGenerated?: number;
+    totalCommissionEarned?: number;
+    lastPayoutDate?: string;
+    apiKey?: string;
+    apiSecret?: string;
+    ipWhitelist?: string[];
+    webhookSecret?: string;
+    taxId?: string;
+    legalEntityName?: string;
+    kycVerified: boolean;
+    agreementAcceptedAt?: string;
+    agreementVersion?: string;
+    supportPriority: string;
+    notes?: string;
+    updatedAt?: string;
+}
+
+
+export interface PartnerStats {
+    activeStatus: number;
+    complianceRate: number;
+    totalEarned: number;
+    verifiedPartners: number;
+}
+
+export interface PrizeCategory extends BaseEntityModel {
+    name: string;
+    code: string;
+    description: string;
+    priority: number;
+    maxWinners: number;
+    rewardType: string;
+    isRepeatable: boolean;
+    isActive: boolean;
+    updatedAt: string;
+}
+
+export interface Prize extends BaseEntityModel {
+    categoryId: string;
+    name: string;
+    description: string;
+    value: number;
+    currency: string;
+    quantity: number;
+    remainingQuantity: number;
+    probability: number;
+    metaData: any;
+    updatedAt: string;
+}
+
+export interface TicketGroup extends BaseEntityModel {
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    isActive: boolean;
 }

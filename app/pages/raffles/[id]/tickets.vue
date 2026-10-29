@@ -2,7 +2,6 @@
 import { 
   MagnifyingGlassIcon, 
   FunnelIcon, 
-  ArrowDownTrayIcon,
   TicketIcon,
   TagIcon,
   ClockIcon,
@@ -18,10 +17,18 @@ import { isEmpty, debounce } from "lodash-es";
 
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
+import {
+  getRaffleStatusConfig,
+  getStatusBadge,
+  getStatusText,
+  getColorBadge,
+} from '~/utils/statusConfig';
 
 const router = useRouter();
 const route = useRoute();
 const raffleId = route.params.id as string;
+
+// Status display config is shared — see ~/utils/statusConfig.ts
 
 useHead({
   title: 'Raffle Tickets | NSAA BO'
@@ -29,12 +36,12 @@ useHead({
 
 const filters = reactive({
   query: '',
+  raffleId: raffleId,
   status: '',
   startDate: '',
   endDate: '',
   pageNo: 1,
   pageSize: 10,
-  id:raffleId
 });
 
 const paginationParams = reactive({
@@ -50,13 +57,18 @@ const raffle = ref<Raffle | null>(null);
 
 const isShimmerLoading = ref(true);
 
-const getPaginatedTickets = async () => {
-    isShimmerLoading.value = true;
-    try {
-        let result = await getAllRaffleTickets(filters);
-        ticketStats.value = await getAllRaffleTicketStats(raffleId);
 
-        ticketList.value = result.data;
+const getPaginatedTickets = async () => {
+
+  isShimmerLoading.value = true;
+
+  try {
+      
+         let result = await getTickets(filters);
+        
+        ticketStats.value  = await getRaffleTicketStats(raffleId);
+         
+         ticketList.value = result.data;
 
         paginationParams.totalPages = result.totalPages;
         paginationParams.totalCount = result.totalCount;
@@ -84,25 +96,6 @@ const onPageChange = async (pageNumber: number) => {
   const filteredQuery = filterQueryParams({ ...route.query, ...filters });
   router.replace({ query: filteredQuery });
   await getPaginatedTickets();
-};
-
-const getColorBadge = (color: string) => {
-  switch (color) {
-    case 'Red': return 'bg-red-50 text-red-700 border-red-100';
-    case 'Gold': return 'bg-amber-50 text-amber-700 border-amber-100';
-    case 'Green': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-    case 'Black Star': return 'bg-slate-100 text-slate-800 border-slate-200';
-    default: return 'bg-slate-50 text-slate-600 border-slate-100';
-  }
-};
-
-const getStatusBadge = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'PAID': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-    case 'PENDING': return 'bg-amber-50 text-amber-700 border-amber-100';
-    case 'CANCELLED': return 'bg-red-50 text-red-700 border-red-100';
-    default: return 'bg-slate-50 text-slate-600 border-slate-100';
-  }
 };
 
 const debouncedSearch = debounce(() => {
@@ -155,11 +148,20 @@ onMounted(async () => {
       <div class="relative z-10 flex flex-col gap-4">
         <div class="flex items-center gap-3">
           <span class="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white/80">Raffle Campaign</span>
-          <span v-if="raffle.status === 'active'" class="flex h-2 w-2 relative">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          <!-- Raffle status pill -->
+          <span
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+            :class="getRaffleStatusConfig(raffle.status).pill"
+          >
+            <span
+              class="w-1.5 h-1.5 rounded-full shrink-0"
+              :class="[
+                getRaffleStatusConfig(raffle.status).dot,
+                getRaffleStatusConfig(raffle.status).pulse ? 'animate-pulse' : ''
+              ]"
+            />
+            {{ getRaffleStatusConfig(raffle.status).label }}
           </span>
-          <span v-else class="px-2 py-0.5 bg-white/20 rounded-md text-[8px] font-black uppercase">{{ raffle.status }}</span>
         </div>
         <div>
           <h2 class="text-3xl font-black tracking-tight mb-1 text-white">{{ raffle.name }}</h2>
@@ -172,15 +174,15 @@ onMounted(async () => {
             </div>
             <div class="flex items-center gap-2 md:border-l md:border-white/10 md:pl-6">
                 <ClockIcon class="w-4 h-4 text-white/20" />
-                <span class="text-[10px] font-black uppercase tracking-widest text-white/60">{{ rawTimeFormat(raffle.endsAt) }}</span>
+                <span class="text-[10px] font-black uppercase tracking-widest text-white/60">{{ longDateAndTimeFormat(raffle.endTime) }}</span>
             </div>
         </div>
       </div>
 
       <div class="relative z-10 grid grid-cols-2 gap-4 w-full md:w-auto">
         <div class="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-3xl min-w-[160px] hover:bg-white/10 transition-colors">
-          <p class="text-[9px] uppercase tracking-[0.2em] text-white/30 font-black mb-1">Live Prize Pool</p>
-          <p class="text-2xl font-black tracking-tight text-white">{{ _currency(raffle.prizePool) }}</p>
+          <p class="text-[9px] uppercase tracking-[0.2em] text-white/30 font-black mb-1">Winning Option</p>
+          <p class="text-2xl font-black tracking-tight text-white">{{ raffle.winningOptionName || 'N/A' }}</p>
         </div>
         <div class="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-3xl min-w-[160px] hover:bg-white/10 transition-colors">
           <p class="text-[9px] uppercase tracking-[0.2em] text-white/30 font-black mb-1">Total Entries</p>
@@ -307,9 +309,10 @@ onMounted(async () => {
               <th class="px-8 py-5 text-center">Status</th>
             </tr>
           </thead>
+
           <tbody class="text-sm divide-y divide-slate-50 text-slate-600">
             <tr v-for="ticket in ticketList" :key="ticket.id" class="hover:bg-slate-50/50 transition-colors group">
-              <td class="px-8 py-5 font-bold text-slate-900 tracking-tight">{{ ticket.ticketNumber }}</td>
+              <td class="px-8 py-5 font-bold text-slate-900 tracking-tight">{{ ticket.ticketNumber }} ({{ ticket.ticketAlias }})</td>
               <td class="px-8 py-5">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
@@ -324,22 +327,17 @@ onMounted(async () => {
                    {{ standardDateFormat(ticket.createdAt) }}
                 </div>
               </td>
-              <td class="px-8 py-5">
+               <td class="px-8 py-5">
                 <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border tracking-widest inline-flex items-center gap-2" :class="getColorBadge(ticket.colourName)">
-                   <span class="w-1.5 h-1.5 rounded-full shadow-sm" :class="[
-                      ticket.colourName === 'Red' ? 'bg-red-500' :
-                      ticket.colourName === 'Gold' ? 'bg-amber-500' :
-                      ticket.colourName === 'Black Star' ? 'bg-black-500' :
-                      ticket.colourName === 'Green' ? 'bg-emerald-500' : 'bg-slate-600'
-                   ]"></span>
-                   {{ ticket.colourName }}
+                   <span class="w-1.5 h-1.5 rounded-full shadow-sm bg-slate-600"></span>
+                   {{ ticket.selectedOptionName }}
                 </span>
               </td>
               <td class="px-8 py-5 font-black text-slate-900">{{ ticket.quantity }}</td>
               <td class="px-8 py-5 font-black text-slate-900 text-right">{{ _currency(ticket.totalAmount) }}</td>
               <td class="px-8 py-5 text-center">
                 <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border tracking-widest inline-flex items-center" :class="getStatusBadge(ticket.paymentStatus)">
-                  {{ ticket.paymentStatus }}
+                  {{ getStatusText(ticket.paymentStatus) }}
                 </span>
               </td>
             </tr>

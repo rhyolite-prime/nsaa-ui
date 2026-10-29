@@ -72,11 +72,11 @@
           
           <div class="flex items-center gap-3 pl-6 border-l border-slate-200">
             <div class="text-right">
-              <p class="text-sm font-black text-slate-800">Emmanuel Addo</p>
+              <p class="text-sm font-black text-slate-800">Code Chef</p>
               <p class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Super Admin</p>
             </div>
             <div class="w-10 h-10 rounded-xl bg-primary-900 flex items-center justify-center text-white font-bold border-2 border-primary-800 shadow-lg">
-              EA
+              CC
             </div>
           </div>
         </div>

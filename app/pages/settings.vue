@@ -241,6 +241,21 @@ const saveSettings = () => {
                        <div :class="['absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm', securitySettings.twoFactorAuth ? 'right-1' : 'left-1']"></div>
                     </button>
                  </div>
+
+                 <div>
+                    <h4 class="text-sm font-black text-slate-900 mb-2 flex items-center gap-2">
+                       <KeyIcon class="w-4 h-4 text-blue-500" />
+                       2-Factor Authentication
+                    </h4>
+                    <p class="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-4">Require Portal Admins to Use 2FA when signing in</p>
+                    <button 
+                       @click="securitySettings.twoFactorAuth = !securitySettings.twoFactorAuth"
+                       :class="['w-14 h-7 rounded-full transition-all relative', securitySettings.twoFactorAuth ? 'bg-primary' : 'bg-slate-200']"
+                    >
+                       <div :class="['absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm', securitySettings.twoFactorAuth ? 'right-1' : 'left-1']"></div>
+                    </button>
+                 </div>
+
                  <div>
                     <h4 class="text-sm font-black text-slate-900 mb-2 flex items-center gap-2">
                        <FingerPrintIcon class="w-4 h-4 text-emerald-500" />

@@ -10,6 +10,6 @@ export async function getCustomers(query: object) {
 
 export async function getCustomerStats() {
  
-    const response = await httpClient<BaseApiResponse<CustomerStats>>('customers/get-stats', "");
+    const response = await httpClient<BaseApiResponse<CustomerStats>>('customers/get-all-stats', "");
     return response.result;
 }
