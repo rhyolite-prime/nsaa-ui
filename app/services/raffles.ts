@@ -82,9 +82,9 @@ export async function deleteRaffle(id: string) {
     return response.success;
 }
 
-export async function executeDraw() {
+export async function executeDraw(raffleId: string) {
  
-    const response = await httpClient<BaseApiResponse<RaffleDrawResponse>>('raffle/execute-draw', "");
+    const response = await httpClient<BaseApiResponse<RaffleDrawResponse>>(`raffle/execute-draw/${raffleId}`, "");
     return response.result;
 }
 

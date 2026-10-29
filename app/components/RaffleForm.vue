@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { TrophyIcon, ChevronDownIcon } from '@heroicons/vue/24/outline';
-import type { Raffle, AffiliatePartner } from "~/models";
+import type { Raffle, AffiliatePartner, PriceCategory, Prize } from "~/models";
 import { getPartners } from "~/services/partners";
 import { createRaffle, updateRaffle } from "~/services/raffles";
+import { getPrizeCategories, getCategoryPrizes } from "~/services/priceConfig";
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
-const prizesStore = usePrizesStore();
-const MOCK_CATEGORIES = prizesStore.categories;
-const MOCK_PRIZES = prizesStore.allPrizes;
+
+// Prize configuration – loaded from the prize-config API
+const priceCategoryList = ref<PriceCategory[]>([]);
+const prizeList = ref<Prize[]>([]);
+const loadedCategoryIds = ref<string[]>([]);
+const isLoadingCategories = ref(false);
+const isLoadingPrizes = ref(false);
+const prizeConfigError = ref('');
 
 const props = defineProps<{
   mode: 'create' | 'edit';
@@ -36,7 +42,75 @@ const form = ref({
   selectedPrizes: [] as { prizeId: string; quantity: number }[]
 });
 
+// ─── Prize configuration (API) ─────────────────────────────────────────────
+
+// Load prize categories from the API
+const loadPrizeCategories = async () => {
+  isLoadingCategories.value = true;
+  try {
+    const res = await getPrizeCategories({ pageNo: 1, pageSize: 500 });
+    priceCategoryList.value = res?.data || [];
+    prizeConfigError.value = '';
+  } catch (error) {
+    console.error('Failed to load prize categories', error);
+    prizeConfigError.value = 'Failed to load prize categories. Please try again.';
+  } finally {
+    isLoadingCategories.value = false;
+  }
+};
+
+// Load prizes for any newly-selected categories (cached per category)
+const loadPrizesForCategories = async (categoryIds: string[]) => {
+  const missing = categoryIds.filter(id => !loadedCategoryIds.value.includes(id));
+  if (missing.length === 0) return;
+
+  isLoadingPrizes.value = true;
+  try {
+    await Promise.all(
+      missing.map(async (categoryId) => {
+        const raw = (await getCategoryPrizes(categoryId)) as unknown;
+        const list: Prize[] = Array.isArray(raw)
+          ? raw
+          : ((raw as { data?: Prize[] })?.data || []);
+        const prizes = list.map(p => ({ ...p, categoryId: p.categoryId || categoryId }));
+        prizeList.value = [
+          ...prizeList.value.filter(p => p.categoryId !== categoryId),
+          ...prizes
+        ];
+        loadedCategoryIds.value.push(categoryId);
+      })
+    );
+    if (form.value.selectedCategories.every(id => loadedCategoryIds.value.includes(id))) {
+      prizeConfigError.value = '';
+    }
+  } catch (error) {
+    console.error('Failed to load prizes for selected categories', error);
+    prizeConfigError.value = 'Failed to load prizes for the selected categories. Please try again.';
+  } finally {
+    isLoadingPrizes.value = false;
+  }
+};
+
+// Re-fetch whichever part of the prize configuration failed to load
+const retryPrizeConfiguration = async () => {
+  prizeConfigError.value = '';
+  if (priceCategoryList.value.length === 0) {
+    await loadPrizeCategories();
+  }
+  await loadPrizesForCategories([...form.value.selectedCategories]);
+};
+
+// Fetch prizes as soon as categories are selected
+watch(
+  () => form.value.selectedCategories,
+  (categoryIds) => {
+    loadPrizesForCategories([...categoryIds]);
+  },
+  { deep: true }
+);
+
 onMounted(async () => {
+  loadPrizeCategories();
   try {
     const partnersResult = await getPartners({ pageNo: 1, pageSize: 1000 });
     partnerList.value = partnersResult.data;
@@ -70,12 +144,12 @@ watch(() => form.value.name, (newName) => {
 });
 
 const availablePrizesForCategories = computed(() => {
-  return MOCK_PRIZES.value.filter(p => form.value.selectedCategories.includes(p.categoryId));
+  return prizeList.value.filter(p => form.value.selectedCategories.includes(p.categoryId));
 });
 
 watch(() => form.value.selectedCategories, (newCategories) => {
   form.value.selectedPrizes = form.value.selectedPrizes.filter(sp => {
-    const prize = MOCK_PRIZES.value.find(p => p.id === sp.prizeId);
+    const prize = prizeList.value.find(p => p.id === sp.prizeId);
     return prize && newCategories.includes(prize.categoryId);
   });
 });
@@ -107,7 +181,7 @@ const updatePrizeQuantity = (prizeId: string, quantity: number) => {
 
 const computedPrizePool = computed(() => {
   return form.value.selectedPrizes.reduce((total, sp) => {
-    const prize = MOCK_PRIZES.value.find(p => p.id === sp.prizeId);
+    const prize = prizeList.value.find(p => p.id === sp.prizeId);
     if (prize) {
       return total + (prize.value * sp.quantity);
     }
@@ -268,12 +342,35 @@ const saveRaffleData = async () => {
           <TrophyIcon class="w-5 h-5 text-yellow-500" /> Prize Configuration
         </h3>
         
+        <!-- Prize configuration load error -->
+        <div
+          v-if="prizeConfigError"
+          class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-red-50 border border-red-100 rounded-2xl mb-4"
+        >
+          <p class="text-sm font-semibold text-red-500">{{ prizeConfigError }}</p>
+          <button
+            type="button"
+            @click="retryPrizeConfiguration"
+            class="shrink-0 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+
         <!-- Category Selection -->
         <div class="space-y-3 mb-6">
           <label class="block text-xs font-black uppercase tracking-wider text-slate-500">Select Prize Categories</label>
-          <div class="flex flex-wrap gap-2">
+          <!-- Categories loading / empty / chips (fetched from API) -->
+          <div v-if="isLoadingCategories" class="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+            <span class="w-4 h-4 border-2 border-pink-200 border-t-pink-600 rounded-full animate-spin"></span>
+            <span class="text-sm font-medium text-slate-400">Loading prize categories...</span>
+          </div>
+          <div v-else-if="priceCategoryList.length === 0" class="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+            <p class="text-sm font-medium text-slate-400">No prize categories available. Create some in Prize Management first.</p>
+          </div>
+          <div v-else class="flex flex-wrap gap-2">
             <label 
-              v-for="category in MOCK_CATEGORIES" 
+              v-for="category in priceCategoryList" 
               :key="category.id"
               class="flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer transition-all"
               :class="form.selectedCategories.includes(category.id) ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'"
@@ -289,8 +386,12 @@ const saveRaffleData = async () => {
           </div>
         </div>
 
-        <!-- Available Prizes for Selected Categories -->
-        <div v-if="availablePrizesForCategories.length > 0" class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+        <!-- Available Prizes for Selected Categories (fetched from API) -->
+        <div v-if="isLoadingPrizes && availablePrizesForCategories.length === 0" class="text-center p-8 border border-dashed border-slate-200 rounded-2xl">
+          <span class="inline-block w-6 h-6 border-2 border-pink-200 border-t-pink-600 rounded-full animate-spin mb-3"></span>
+          <p class="text-sm font-medium text-slate-400">Loading prizes...</p>
+        </div>
+        <div v-else-if="availablePrizesForCategories.length > 0" class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
           <label class="block text-xs font-black uppercase tracking-wider text-slate-500">Include Prizes & Quantities</label>
           <div class="space-y-3 max-h-60 overflow-y-auto pr-2">
             <div v-for="prize in availablePrizesForCategories" :key="prize.id" class="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 hover:border-primary-200 transition-colors">
@@ -317,7 +418,14 @@ const saveRaffleData = async () => {
                 />
               </div>
             </div>
+            <div v-if="isLoadingPrizes" class="flex items-center justify-center gap-2 py-2">
+              <span class="w-3.5 h-3.5 border-2 border-pink-200 border-t-pink-600 rounded-full animate-spin"></span>
+              <span class="text-xs font-medium text-slate-400">Loading more prizes...</span>
+            </div>
           </div>
+        </div>
+        <div v-else class="text-center p-8 border border-dashed border-slate-200 rounded-2xl">
+          <p class="text-sm font-medium text-slate-400">Select a category above to view available prizes.</p>
         </div>
       </div>
 

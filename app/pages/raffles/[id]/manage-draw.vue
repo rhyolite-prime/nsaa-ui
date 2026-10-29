@@ -68,19 +68,14 @@ const getRaffleInfo = async () => {
 const executeRaffleDraw = async () => {
   isDrawing.value = true;
   try {
-      // Depending on how backend is set up, might need to pass raffleId 
-      // but raffles.ts does not currently take an ID for executeDraw().
-      // Assuming it uses active raffle or something else.
-      await executeDraw();
-      
-      // Refresh to get winners
-      setTimeout(() => {
-        getRaffleInfo();
-      }, 1000);
+       
+      await executeDraw(raffleId);
+       
     } catch (error) {
       console.error('Unable to execute raffle draw.');
     } finally {
-      isDrawing.value = false;
+    isDrawing.value = false;
+      getRaffleInfo();
     }
 }
 

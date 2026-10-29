@@ -9,7 +9,8 @@ import {
   PlusIcon,
   TrashIcon
 } from '@heroicons/vue/24/outline';
-import type { AffiliatePartner } from "~/models";
+import type { AffiliatePartner, PriceCategory, Prize } from "~/models";
+import { getPrizeCategories, getCategoryPrizes } from "~/services/priceConfig";
 import { toast } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
 import useVuelidate from '@vuelidate/core';
@@ -21,12 +22,17 @@ const isSaving = ref(false);
 const partnerList = ref<AffiliatePartner[]>([]);
 const isPartnersDropdownOpen = ref(false);
 
-// Prize store – backed by MOCK_CATEGORIES / MOCK_PRIZES
-const { categories: priceCategoryList, allPrizes } = usePrizesStore();
+// Prize configuration – loaded from the prize-config API
+const priceCategoryList = ref<PriceCategory[]>([]);
+const prizeList = ref<Prize[]>([]);
+const loadedCategoryIds = ref<string[]>([]);
+const isLoadingCategories = ref(false);
+const isLoadingPrizes = ref(false);
+const prizeConfigError = ref('');
 
 // Prizes that belong to any currently-selected category
 const availablePrizesForCategories = computed(() =>
-  allPrizes.value.filter(p =>
+  prizeList.value.filter(p =>
     form.value.selectedCategories.includes(p.categoryId)
   )
 );
@@ -34,7 +40,7 @@ const availablePrizesForCategories = computed(() =>
 // Calculate total liability based on selected prizes
 const computedLiability = computed(() =>
   form.value.prizeConfiguration.reduce((sum, pc) => {
-    const prize = allPrizes.value.find(p => p.id === pc.prizeId);
+    const prize = prizeList.value.find(p => p.id === pc.prizeId);
     return sum + (prize ? prize.value * pc.value : 0);
   }, 0)
 );
@@ -102,7 +108,74 @@ const rules = computed(() => ({
 const v$ = useVuelidate(rules, form);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
+
+// Load prize categories from the API
+const loadPrizeCategories = async () => {
+  isLoadingCategories.value = true;
+  try {
+    const res = await getPrizeCategories({ pageNo: 1, pageSize: 500 });
+    priceCategoryList.value = res?.data || [];
+    prizeConfigError.value = '';
+  } catch (error) {
+    console.error('Failed to load prize categories', error);
+    prizeConfigError.value = 'Failed to load prize categories. Please try again.';
+  } finally {
+    isLoadingCategories.value = false;
+  }
+};
+
+// Load prizes for any newly-selected categories (cached per category)
+const loadPrizesForCategories = async (categoryIds: string[]) => {
+  const missing = categoryIds.filter(id => !loadedCategoryIds.value.includes(id));
+  if (missing.length === 0) return;
+
+  isLoadingPrizes.value = true;
+  try {
+    await Promise.all(
+      missing.map(async (categoryId) => {
+        const raw = (await getCategoryPrizes(categoryId)) as unknown;
+        const list: Prize[] = Array.isArray(raw)
+          ? raw
+          : ((raw as { data?: Prize[] })?.data || []);
+        const prizes = list.map(p => ({ ...p, categoryId: p.categoryId || categoryId }));
+        prizeList.value = [
+          ...prizeList.value.filter(p => p.categoryId !== categoryId),
+          ...prizes
+        ];
+        loadedCategoryIds.value.push(categoryId);
+      })
+    );
+    if (form.value.selectedCategories.every(id => loadedCategoryIds.value.includes(id))) {
+      prizeConfigError.value = '';
+    }
+  } catch (error) {
+    console.error('Failed to load prizes for selected categories', error);
+    prizeConfigError.value = 'Failed to load prizes for the selected categories. Please try again.';
+  } finally {
+    isLoadingPrizes.value = false;
+  }
+};
+
+// Re-fetch whichever part of the prize configuration failed to load
+const retryPrizeConfiguration = async () => {
+  prizeConfigError.value = '';
+  if (priceCategoryList.value.length === 0) {
+    await loadPrizeCategories();
+  }
+  await loadPrizesForCategories([...form.value.selectedCategories]);
+};
+
+// Fetch prizes as soon as categories are selected
+watch(
+  () => form.value.selectedCategories,
+  (categoryIds) => {
+    loadPrizesForCategories([...categoryIds]);
+  },
+  { deep: true }
+);
+
 onMounted(async () => {
+  loadPrizeCategories();
   try {
     const partnersResult = await getPartners({ pageNo: 1, pageSize: 1000 });
     partnerList.value = partnersResult.data;
@@ -418,9 +491,32 @@ const saveRaffleData = async () => {
             <h2 class="text-xl font-black text-slate-900 tracking-tight mb-2">Prize Configuration</h2>
             <p class="text-sm text-slate-500 font-medium mb-6">Set up the prize categories and quantities for this raffle.</p>
 
+            <!-- Prize configuration load error -->
+            <div
+              v-if="prizeConfigError"
+              class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-red-50 border border-red-100 rounded-2xl"
+            >
+              <p class="text-sm font-semibold text-red-500">{{ prizeConfigError }}</p>
+              <button
+                type="button"
+                @click="retryPrizeConfiguration"
+                class="shrink-0 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+
             <div class="space-y-3 mb-6">
               <label class="block text-xs font-black uppercase tracking-wider text-slate-500">Select Prize Categories</label>
-              <div class="flex flex-wrap gap-2">
+              <!-- Categories loading / empty / chips (fetched from API) -->
+              <div v-if="isLoadingCategories" class="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                <span class="w-4 h-4 border-2 border-pink-200 border-t-pink-600 rounded-full animate-spin"></span>
+                <span class="text-sm font-medium text-slate-400">Loading prize categories...</span>
+              </div>
+              <div v-else-if="priceCategoryList.length === 0" class="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                <p class="text-sm font-medium text-slate-400">No prize categories available. Create some in Prize Management first.</p>
+              </div>
+              <div v-else class="flex flex-wrap gap-2">
                 <label 
                   v-for="priceCategory in priceCategoryList" 
                   :key="priceCategory.id"
@@ -438,8 +534,12 @@ const saveRaffleData = async () => {
               </div>
             </div>
 
-            <!-- Available Prizes for Selected Categories -->
-            <div v-if="availablePrizesForCategories.length > 0" class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+            <!-- Available Prizes for Selected Categories (fetched from API) -->
+            <div v-if="isLoadingPrizes && availablePrizesForCategories.length === 0" class="text-center p-8 border border-dashed border-slate-200 rounded-2xl">
+              <span class="inline-block w-6 h-6 border-2 border-pink-200 border-t-pink-600 rounded-full animate-spin mb-3"></span>
+              <p class="text-sm font-medium text-slate-400">Loading prizes...</p>
+            </div>
+            <div v-else-if="availablePrizesForCategories.length > 0" class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
               <label class="block text-xs font-black uppercase tracking-wider text-slate-500">Include Prizes & Quantities</label>
               <div class="space-y-3 max-h-60 overflow-y-auto pr-2">
                 <div v-for="prize in availablePrizesForCategories" :key="prize.id" class="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200 hover:border-pink-200 transition-colors">
@@ -464,6 +564,10 @@ const saveRaffleData = async () => {
                       class="w-24 px-2 py-1 text-right bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-pink-500/20"
                     />
                   </div>
+                </div>
+                <div v-if="isLoadingPrizes" class="flex items-center justify-center gap-2 py-2">
+                  <span class="w-3.5 h-3.5 border-2 border-pink-200 border-t-pink-600 rounded-full animate-spin"></span>
+                  <span class="text-xs font-medium text-slate-400">Loading more prizes...</span>
                 </div>
               </div>
             </div>
