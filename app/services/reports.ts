@@ -7,6 +7,12 @@ export async function getSummary(query: object) {
     return response.result;
 }
 
+export async function getTicketDistribution(query: object) {
+ 
+    const response = await httpClient<BaseApiResponse<any>>('reports/ticket-distribution', "", { query });
+    return response.result;
+}
+
 export async function getPlayerParticipationLedger(query: object) {
  
     const response = await httpClient<BaseApiResponse<any>>('reports/participation-ledger', "", { query });

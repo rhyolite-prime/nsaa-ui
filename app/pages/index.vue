@@ -37,15 +37,13 @@ const drawStats = ref([
     status: 'Completed',
     winning_colour: 'Gold',
     total_entries: 48200,
-    total_pool: 241000,
-    total_prizes: 185000,
+    total_revenue: 241000,
+    total_liability: 185000,
     unique_participants: 12450,
-    winning_colour_entries: 15320,
-    total_winners: 450,
+    winning_option_entries: 15320,
+    total_winners: 3,
     ultimate_winners: 1,
-    tier2_winners: 14,
-    tier3_winners: 435,
-    cashback_recipients: 1200
+     
   },
   {
     id: 'DRW-FEB-002',
@@ -54,15 +52,13 @@ const drawStats = ref([
     status: 'Completed',
     winning_colour: 'Red',
     total_entries: 42100,
-    total_pool: 210500,
-    total_prizes: 162000,
+    total_revenue: 210500,
+    total_liability: 162000,
     unique_participants: 10800,
-    winning_colour_entries: 12450,
-    total_winners: 380,
+    winning_option_entries: 12450,
+    total_winners: 3,
     ultimate_winners: 1,
-    tier2_winners: 10,
-    tier3_winners: 369,
-    cashback_recipients: 980
+     
   }
 ]);
 
