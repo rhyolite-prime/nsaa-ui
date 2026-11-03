@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { 
-  MagnifyingGlassIcon, 
-  FunnelIcon, 
+import {
+  MagnifyingGlassIcon,
+  FunnelIcon,
   TicketIcon,
   TagIcon,
   ClockIcon,
   UserIcon,
   BanknotesIcon,
   ChartBarIcon,
-  CalendarIcon
+  CalendarIcon,
+  ArrowDownTrayIcon,
+  ArrowPathIcon
 } from '@heroicons/vue/24/outline';
 
 import type { Ticket, Raffle } from "~/models";
@@ -52,6 +54,18 @@ const ticketStats = ref<TicketStats>();
 const activeRaffleList = ref<Raffle[]>([]);
 
 const isShimmerLoading = ref(true);
+const isExporting = ref(false);
+
+const fetchTickets = async (pageNo: number, pageSize: number) => {
+    return await getTickets({
+        query: filters.query,
+        status: filters.status,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        pageNo,
+        pageSize,
+    });
+};
 
 const getPaginatedTickets = async () => {
 
@@ -59,7 +73,7 @@ const getPaginatedTickets = async () => {
 
     try {
 
-        let result = await getTickets(filters);
+        let result = await fetchTickets(filters.pageNo, filters.pageSize);
 
         ticketList.value = result.data;
 
@@ -73,8 +87,79 @@ const getPaginatedTickets = async () => {
     } finally {
         isShimmerLoading.value = false;
     }
-  
+
 }
+
+const exportTickets = async () => {
+    if (isExporting.value) return;
+
+    isExporting.value = true;
+
+    try {
+        // Reuse the same filters as the page, but request every record at once.
+        const result = await fetchTickets(1, 500000);
+        const tickets = Array.isArray(result?.data) ? result.data : [];
+
+        if (!tickets.length) {
+            toast.error('There are no tickets to export for the current filters.');
+            return;
+        }
+
+        const headers = [
+            'Ticket ID',
+            'Ticket Alias',
+            'Customer Phone',
+            'Purchase Date',
+            'Selected Option',
+            'Colour',
+            'Quantity',
+            'Amount (GHS)',
+            'Payment Status',
+            'Payment Method',
+            'Payment Reference',
+            'Draw ID',
+            'Customer ID',
+        ];
+
+        const rows = tickets.map((ticket) => [
+            ticket.ticketNumber,
+            ticket.ticketAlias,
+            ticket.customerPhone,
+            ticket.createdAt,
+            ticket.selectedOptionName ?? ticket.colourName,
+            ticket.colourName,
+            ticket.quantity,
+            ticket.totalAmount,
+            getStatusText(ticket.paymentStatus),
+            ticket.paymentMethod,
+            ticket.paymentReference,
+            ticket.drawId,
+            ticket.customerId,
+        ]);
+
+        const csv = [headers, ...rows]
+            .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+            .join('\r\n');
+
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = `nsaa-tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        toast.success(`${tickets.length.toLocaleString()} tickets exported.`);
+    } catch (error) {
+        console.error('Ticket export failed:', error);
+        toast.error('Unable to export tickets. Please try again.');
+    } finally {
+        isExporting.value = false;
+    }
+};
 
 
 const onPageChange = async (pageNumber: number) => {
@@ -117,15 +202,22 @@ const debouncedSearch = debounce(() => {
 
 <template>
   <div class="space-y-6 font-sans">
-    <div class="flex justify-between items-center">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
       <div>
         <h1 class="text-2xl font-black text-slate-900 tracking-tight">Ticket Explorer</h1>
         <p class="text-slate-500 text-sm font-medium">Real-time entry monitoring.</p>
       </div>
-      <!-- <button class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">
-        <ArrowDownTrayIcon class="w-4 h-4" />
-        Export CSV
-      </button> -->
+      <button
+        type="button"
+        @click="exportTickets"
+        :disabled="isExporting || isShimmerLoading"
+        title="Export all filtered tickets as CSV"
+        class="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed active:scale-95 shrink-0"
+      >
+        <ArrowPathIcon v-if="isExporting" class="w-4 h-4 animate-spin text-primary" />
+        <ArrowDownTrayIcon v-else class="w-4 h-4 text-primary" />
+        <span>{{ isExporting ? 'Exporting…' : 'Export CSV' }}</span>
+      </button>
     </div>
 
     
