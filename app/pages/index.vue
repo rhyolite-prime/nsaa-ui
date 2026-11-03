@@ -595,7 +595,8 @@ const exportAnalytics = () => {
         <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">Executive Dashboard</h1>
         <p class="text-sm font-medium text-slate-400 mt-2">
           A real-time pulse on revenue, tickets, customers and draws.
-          <span v-if="lastUpdated" class="text-slate-300"> · Updated {{ lastUpdated }}</span>
+          <span v-if="isLoading" class="text-primary-500"> · Loading analytics…</span>
+          <span v-else-if="lastUpdated" class="text-slate-300"> · Updated {{ lastUpdated }}</span>
         </p>
       </div>
 
@@ -728,45 +729,212 @@ const exportAnalytics = () => {
     </div>
 
     <!-- Loading skeletons -->
-    <div v-if="isLoading" class="space-y-6">
+    <div v-if="isLoading" class="space-y-6" role="status" aria-live="polite" aria-busy="true">
+      <span class="sr-only">Loading dashboard analytics…</span>
+
+      <!-- KPI cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <div
           v-for="index in 4"
           :key="`kpi-skeleton-${index}`"
           class="bg-white rounded-[28px] border border-slate-100 p-6 shadow-sm"
         >
-          <div class="flex items-start justify-between">
+          <div class="flex items-start justify-between gap-3">
             <div class="w-11 h-11 rounded-2xl shimmer"></div>
             <div class="w-16 h-5 rounded-full shimmer"></div>
           </div>
-          <div class="w-24 h-3 rounded-full shimmer mt-7"></div>
-          <div class="w-32 h-7 rounded-xl shimmer mt-2"></div>
-          <div class="w-40 h-3 rounded-full shimmer mt-3"></div>
+          <div class="w-24 h-2.5 rounded-full shimmer mt-7"></div>
+          <div class="w-32 h-7 rounded-xl shimmer mt-2.5"></div>
+          <div class="w-40 h-2.5 rounded-full shimmer mt-3"></div>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-5">
+      <!-- Quick stats strip -->
+      <div
+        class="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden"
+      >
         <div
           v-for="index in 4"
           :key="`quick-skeleton-${index}`"
-          class="bg-white rounded-[24px] border border-slate-100 p-5 shadow-sm flex items-center gap-4"
+          class="p-5 flex items-center gap-3.5"
         >
           <div class="w-10 h-10 rounded-2xl shimmer shrink-0"></div>
           <div class="flex-1">
-            <div class="w-20 h-2.5 rounded-full shimmer"></div>
+            <div class="w-20 h-2 rounded-full shimmer"></div>
             <div class="w-16 h-5 rounded-lg shimmer mt-2"></div>
           </div>
         </div>
       </div>
 
+      <!-- Distribution + draw performance -->
       <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div class="xl:col-span-2 h-[440px] rounded-[36px] bg-white border border-slate-100 shadow-sm shimmer"></div>
-        <div class="h-[440px] rounded-[36px] bg-primary-900/90 shimmer"></div>
+        <!-- Distribution skeleton -->
+        <div class="xl:col-span-2 bg-white rounded-[36px] border border-slate-100 shadow-sm p-6 sm:p-8">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <div class="w-16 h-2 rounded-full shimmer"></div>
+              <div class="w-40 h-5 rounded-lg shimmer mt-2.5"></div>
+              <div class="w-48 h-2.5 rounded-full shimmer mt-2.5"></div>
+            </div>
+            <div class="w-24 h-7 rounded-full shimmer"></div>
+          </div>
+
+          <div class="mt-8 grid md:grid-cols-[220px,1fr] gap-8 items-center">
+            <div class="relative mx-auto w-[220px] h-[220px]">
+              <div class="w-full h-full rounded-full shimmer"></div>
+              <div class="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                <div class="w-16 h-2 rounded-full shimmer"></div>
+                <div class="w-12 h-7 rounded-lg shimmer"></div>
+                <div class="w-14 h-2 rounded-full shimmer"></div>
+              </div>
+            </div>
+
+            <div class="space-y-2.5">
+              <div
+                v-for="index in 3"
+                :key="`legend-skeleton-${index}`"
+                class="rounded-2xl border border-slate-100 bg-slate-50/40 p-3.5"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-2.5 h-2.5 rounded-full shimmer"></div>
+                    <div class="w-20 h-3 rounded-full shimmer"></div>
+                  </div>
+                  <div class="w-24 h-2.5 rounded-full shimmer"></div>
+                </div>
+                <div class="mt-2.5 h-1.5 rounded-full shimmer"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-8 grid grid-cols-3 divide-x divide-slate-100 rounded-2xl bg-slate-50/60 border border-slate-100 py-4">
+            <div v-for="index in 3" :key="`total-skeleton-${index}`" class="px-4 text-center">
+              <div class="w-12 h-2 rounded-full shimmer mx-auto"></div>
+              <div class="w-16 h-5 rounded-lg shimmer mx-auto mt-2"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Draw performance skeleton -->
+        <div
+          class="relative overflow-hidden rounded-[36px] bg-primary-900 p-6 sm:p-8 flex flex-col shadow-xl shadow-primary-900/10"
+        >
+          <div class="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary-500/20 blur-3xl"></div>
+
+          <div class="relative flex items-start justify-between gap-4">
+            <div>
+              <div class="w-24 h-2 rounded-full shimmer-dark"></div>
+              <div class="w-32 h-5 rounded-lg shimmer-dark mt-2.5"></div>
+            </div>
+            <div class="w-10 h-10 rounded-2xl shimmer-dark"></div>
+          </div>
+
+          <div class="relative mt-8">
+            <div class="flex items-end justify-between gap-3">
+              <div>
+                <div class="w-24 h-2 rounded-full shimmer-dark"></div>
+                <div class="w-20 h-9 rounded-xl shimmer-dark mt-2"></div>
+              </div>
+              <div class="w-28 h-6 rounded-full shimmer-dark"></div>
+            </div>
+            <div class="mt-4 h-2 rounded-full shimmer-dark"></div>
+          </div>
+
+          <div class="relative mt-8 grid grid-cols-2 gap-3">
+            <div
+              v-for="index in 4"
+              :key="`draw-skeleton-${index}`"
+              class="rounded-2xl bg-white/5 border border-white/10 p-4"
+            >
+              <div class="w-16 h-2 rounded-full shimmer-dark"></div>
+              <div class="w-10 h-5 rounded-lg shimmer-dark mt-2.5"></div>
+            </div>
+          </div>
+
+          <div class="relative mt-auto pt-6">
+            <div class="rounded-2xl bg-secondary/10 border border-secondary/20 p-4 flex items-center justify-between gap-3">
+              <div>
+                <div class="w-20 h-2 rounded-full shimmer-dark"></div>
+                <div class="w-16 h-5 rounded-lg shimmer-dark mt-2"></div>
+              </div>
+              <div class="w-5 h-5 rounded-lg shimmer-dark"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
+      <!-- Payment health + quick actions -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 h-[300px] rounded-[36px] bg-white border border-slate-100 shadow-sm shimmer"></div>
-        <div class="h-[300px] rounded-[36px] bg-white border border-slate-100 shadow-sm shimmer"></div>
+        <!-- Payment health skeleton -->
+        <div class="lg:col-span-2 bg-white rounded-[36px] border border-slate-100 shadow-sm p-6 sm:p-8">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <div class="w-16 h-2 rounded-full shimmer"></div>
+              <div class="w-44 h-5 rounded-lg shimmer mt-2.5"></div>
+              <div class="w-56 h-2.5 rounded-full shimmer mt-2.5"></div>
+            </div>
+            <div class="w-16 h-7 rounded-full shimmer"></div>
+          </div>
+
+          <div class="mt-8 flex items-end justify-between gap-4">
+            <div>
+              <div class="w-20 h-2 rounded-full shimmer"></div>
+              <div class="w-16 h-9 rounded-xl shimmer mt-2"></div>
+            </div>
+            <div>
+              <div class="w-24 h-2 rounded-full shimmer ml-auto"></div>
+              <div class="w-16 h-9 rounded-xl shimmer mt-2 ml-auto"></div>
+            </div>
+          </div>
+
+          <div class="mt-4 h-3 rounded-full shimmer"></div>
+          <div class="mt-3 flex items-center justify-between">
+            <div class="w-16 h-2 rounded-full shimmer"></div>
+            <div class="w-20 h-2 rounded-full shimmer"></div>
+          </div>
+
+          <div class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div
+              v-for="index in 4"
+              :key="`health-skeleton-${index}`"
+              class="rounded-2xl border border-slate-100 bg-slate-50/40 p-4"
+            >
+              <div class="w-8 h-8 rounded-xl shimmer"></div>
+              <div class="w-16 h-2 rounded-full shimmer mt-3"></div>
+              <div class="w-12 h-4 rounded-lg shimmer mt-2"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions skeleton -->
+        <div class="bg-white rounded-[36px] border border-slate-100 shadow-sm p-6 sm:p-8 flex flex-col">
+          <div>
+            <div class="w-16 h-2 rounded-full shimmer"></div>
+            <div class="w-28 h-5 rounded-lg shimmer mt-2.5"></div>
+            <div class="w-36 h-2.5 rounded-full shimmer mt-2.5"></div>
+          </div>
+
+          <div class="mt-6 space-y-2.5 flex-1">
+            <div
+              v-for="index in 4"
+              :key="`action-skeleton-${index}`"
+              class="flex items-center gap-3.5 rounded-2xl border border-slate-100 p-3.5"
+            >
+              <div class="w-10 h-10 rounded-xl shimmer shrink-0"></div>
+              <div class="flex-1">
+                <div class="w-24 h-3 rounded-full shimmer"></div>
+                <div class="w-32 h-2 rounded-full shimmer mt-2"></div>
+              </div>
+              <div class="w-4 h-4 rounded shimmer"></div>
+            </div>
+          </div>
+
+          <div class="mt-6 rounded-2xl bg-primary-50 border border-primary-100 p-4">
+            <div class="w-4 h-4 rounded shimmer"></div>
+            <div class="w-full h-2 rounded-full shimmer mt-3"></div>
+            <div class="w-3/4 h-2 rounded-full shimmer mt-2"></div>
+          </div>
+        </div>
       </div>
     </div>
 
