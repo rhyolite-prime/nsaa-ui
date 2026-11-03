@@ -119,12 +119,13 @@ export interface Ticket extends BaseEntityModel {
     entryFee: string;
     quantity: string;
     colourName: string;
+    selectedOptionName?: string;
     totalAmount: string;
     paymentReference: string;
     paymentStatus: string;
     paymentMethod: string;
     customerPhone: string;
-    
+
 }
 
 
@@ -320,4 +321,42 @@ export interface TicketGroup extends BaseEntityModel {
     quantity: number;
     unitPrice: number;
     isActive: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard / Reporting
+// ---------------------------------------------------------------------------
+
+export interface DashboardSummary {
+    activeCustomers: number;
+    activeRaffles: number;
+    completedDraws: number;
+    endDate: string;
+    paidTickets: number;
+    pendingPayouts: number;
+    pendingTickets: number;
+    startDate: string;
+    totalCustomers: number;
+    totalDraws: number;
+    totalQuantity: number;
+    totalRaffles: number;
+    totalRevenue: number;
+    totalTickets: number;
+    totalWinners: number;
+}
+
+export interface TicketDistributionEntry {
+    entries: number;
+    name: string;
+    percentage: number;
+    revenue: number;
+    tickets: number;
+    value: string;
+}
+
+export interface TicketDistribution {
+    data: TicketDistributionEntry[];
+    totalEntries: number;
+    totalRevenue: number;
+    totalTickets: number;
 }
