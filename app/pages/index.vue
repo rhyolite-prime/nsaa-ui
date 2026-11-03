@@ -76,6 +76,96 @@ const isError = ref(false);
 const hasPartialError = ref(false);
 const isPreviewData = ref(false);
 const lastUpdated = ref('');
+const requestSequence = ref(0);
+
+// ---------------------------------------------------------------------------
+// Date range filters
+// ---------------------------------------------------------------------------
+
+const filters = reactive({
+  startDate: '',
+  endDate: '',
+});
+
+const datePresets = [
+  { id: 'all', label: 'All time' },
+  { id: 'today', label: 'Today' },
+  { id: '7d', label: 'Last 7 days' },
+  { id: '30d', label: 'Last 30 days' },
+  { id: 'month', label: 'This month' },
+] as const;
+
+type DatePresetId = (typeof datePresets)[number]['id'] | 'custom';
+
+const activePreset = ref<DatePresetId>('all');
+
+const toDateInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const today = computed(() => toDateInputValue(new Date()));
+
+const hasActiveRange = computed(() => Boolean(filters.startDate || filters.endDate));
+
+const activePresetLabel = computed(() => {
+  if (activePreset.value === 'custom') return 'Custom range';
+  return datePresets.find((preset) => preset.id === activePreset.value)?.label ?? 'All time';
+});
+
+const applyPreset = (preset: DatePresetId) => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (preset) {
+    case 'today':
+      filters.startDate = toDateInputValue(start);
+      filters.endDate = toDateInputValue(end);
+      break;
+    case '7d':
+      start.setDate(start.getDate() - 6);
+      filters.startDate = toDateInputValue(start);
+      filters.endDate = toDateInputValue(end);
+      break;
+    case '30d':
+      start.setDate(start.getDate() - 29);
+      filters.startDate = toDateInputValue(start);
+      filters.endDate = toDateInputValue(end);
+      break;
+    case 'month':
+      start.setDate(1);
+      filters.startDate = toDateInputValue(start);
+      filters.endDate = toDateInputValue(end);
+      break;
+    default:
+      filters.startDate = '';
+      filters.endDate = '';
+      break;
+  }
+
+  activePreset.value = preset;
+  loadDashboard('initial');
+};
+
+const applyCustomRange = () => {
+  if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
+    toast.error('The start date must be before the end date.');
+    return;
+  }
+
+  activePreset.value = 'custom';
+  loadDashboard('initial');
+};
+
+const clearFilters = () => {
+  filters.startDate = '';
+  filters.endDate = '';
+  activePreset.value = 'all';
+  loadDashboard('initial');
+};
 
 // ---------------------------------------------------------------------------
 // Formatting helpers
@@ -102,7 +192,9 @@ const formatTicketCount = (value?: number | null) =>
 
 const formatDate = (value?: string) => {
   if (!value) return '';
-  const date = new Date(value);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00`)
+    : new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
@@ -116,6 +208,7 @@ const formatDate = (value?: string) => {
 // ---------------------------------------------------------------------------
 
 const loadDashboard = async (mode: 'initial' | 'refresh' = 'initial') => {
+  const requestId = ++requestSequence.value;
   const showSkeleton = mode === 'initial' || isError.value || !summary.value;
 
   if (showSkeleton) {
@@ -128,10 +221,18 @@ const loadDashboard = async (mode: 'initial' | 'refresh' = 'initial') => {
   hasPartialError.value = false;
 
   try {
+    const query = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+    };
+
     const [summaryResult, distributionResult] = await Promise.allSettled([
-      getSummary({}),
-      getTicketDistribution({}),
+      getSummary(query),
+      getTicketDistribution(query),
     ]);
+
+    // Ignore responses from a request that has since been superseded.
+    if (requestId !== requestSequence.value) return;
 
     let failedCount = 0;
 
@@ -172,6 +273,8 @@ const loadDashboard = async (mode: 'initial' | 'refresh' = 'initial') => {
   } catch (error) {
     console.error('Dashboard load failed:', error);
 
+    if (requestId !== requestSequence.value) return;
+
     if (import.meta.dev) {
       summary.value = previewSummary;
       distribution.value = previewDistribution;
@@ -182,8 +285,10 @@ const loadDashboard = async (mode: 'initial' | 'refresh' = 'initial') => {
       toast.error('Unable to load dashboard analytics. Please try again.');
     }
   } finally {
-    isLoading.value = false;
-    isRefreshing.value = false;
+    if (requestId === requestSequence.value) {
+      isLoading.value = false;
+      isRefreshing.value = false;
+    }
   }
 };
 
@@ -196,14 +301,11 @@ onMounted(() => {
 // ---------------------------------------------------------------------------
 
 const reportingWindow = computed(() => {
-  const startDate = summary.value?.startDate;
-  const endDate = summary.value?.endDate;
-
-  if (startDate && endDate) {
-    return `${formatDate(startDate)} – ${formatDate(endDate)}`;
+  if (filters.startDate && filters.endDate) {
+    return `${formatDate(filters.startDate)} – ${formatDate(filters.endDate)}`;
   }
-  if (startDate) return `From ${formatDate(startDate)}`;
-  if (endDate) return `Until ${formatDate(endDate)}`;
+  if (filters.startDate) return `From ${formatDate(filters.startDate)}`;
+  if (filters.endDate) return `Until ${formatDate(filters.endDate)}`;
   return 'All time';
 });
 
@@ -424,6 +526,8 @@ const exportAnalytics = () => {
     ['NSAA Dashboard Analytics'],
     ['Generated', new Date().toLocaleString()],
     ['Reporting window', reportingWindow.value],
+    ['Start date', currentSummary.startDate || filters.startDate],
+    ['End date', currentSummary.endDate || filters.endDate],
     [],
     ['Summary metric', 'Value'],
     ['Total revenue (GHS)', currentSummary.totalRevenue],
@@ -517,7 +621,7 @@ const exportAnalytics = () => {
         <button
           type="button"
           @click="exportAnalytics"
-          :disabled="isLoading || !summary"
+          :disabled="isLoading || isRefreshing || !summary"
           class="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-primary-900 text-white text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
         >
           <ArrowDownTrayIcon class="w-4 h-4" />
@@ -525,6 +629,75 @@ const exportAnalytics = () => {
         </button>
       </div>
     </div>
+
+    <!-- Date range filters -->
+    <section
+      aria-label="Dashboard date range filter"
+      class="bg-white rounded-[28px] border border-slate-100 shadow-sm p-4 sm:p-5"
+    >
+      <div class="flex flex-col xl:flex-row xl:items-center gap-4">
+        <div class="flex items-center gap-2.5 shrink-0">
+          <div class="w-9 h-9 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center">
+            <CalendarIcon class="w-4 h-4" />
+          </div>
+          <div>
+            <p class="text-[8px] font-black uppercase tracking-[0.18em] text-slate-400">Date Range</p>
+            <p class="text-xs font-black text-slate-700 mt-0.5">{{ activePresetLabel }}</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5 flex-1">
+          <button
+            v-for="preset in datePresets"
+            :key="preset.id"
+            type="button"
+            @click="applyPreset(preset.id)"
+            :aria-pressed="activePreset === preset.id"
+            class="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+            :class="activePreset === preset.id
+              ? 'bg-primary-900 text-white shadow-sm'
+              : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100'"
+          >
+            {{ preset.label }}
+          </button>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+          <div class="relative">
+            <CalendarIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            <input
+              v-model="filters.startDate"
+              type="date"
+              :max="filters.endDate || today"
+              @change="applyCustomRange"
+              aria-label="Start date"
+              class="w-full sm:w-[150px] pl-9 pr-3 py-2.5 bg-slate-50/50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-300 text-[11px] font-bold text-slate-600 transition-all"
+            />
+          </div>
+          <span class="text-slate-300 font-bold text-[9px] uppercase tracking-widest text-center">to</span>
+          <div class="relative">
+            <CalendarIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            <input
+              v-model="filters.endDate"
+              type="date"
+              :min="filters.startDate || undefined"
+              :max="today"
+              @change="applyCustomRange"
+              aria-label="End date"
+              class="w-full sm:w-[150px] pl-9 pr-3 py-2.5 bg-slate-50/50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-300 text-[11px] font-bold text-slate-600 transition-all"
+            />
+          </div>
+          <button
+            v-if="hasActiveRange"
+            type="button"
+            @click="clearFilters"
+            class="px-3 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 transition-all"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+    </section>
 
     <!-- Dev preview notice -->
     <div
