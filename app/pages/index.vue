@@ -484,20 +484,9 @@ const exportAnalytics = () => {
     <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-5">
       <div>
         <div class="flex flex-wrap items-center gap-2 mb-4">
-          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-100 shadow-sm">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Operations Overview</span>
-          </div>
-          <span
-            v-if="isPreviewData"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-[9px] font-black uppercase tracking-widest text-amber-700"
-          >
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            Preview data
-          </span>
+          
+           
+             
         </div>
         <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">Executive Dashboard</h1>
         <p class="text-sm font-medium text-slate-400 mt-2">
@@ -801,9 +790,7 @@ const exportAnalytics = () => {
               <p class="text-[9px] font-black uppercase tracking-[0.2em] text-primary-300">Draw Performance</p>
               <h3 class="text-xl font-black tracking-tight mt-1">Operational Pulse</h3>
             </div>
-            <div class="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center shrink-0">
-              <SparklesIcon class="w-5 h-5 text-secondary" />
-            </div>
+             
           </div>
 
           <div class="relative mt-8">
@@ -950,12 +937,7 @@ const exportAnalytics = () => {
             </NuxtLink>
           </div>
 
-          <div class="mt-6 rounded-2xl bg-primary-50 border border-primary-100 p-4 flex items-start gap-3">
-            <SparklesIcon class="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <p class="text-[11px] font-medium leading-relaxed text-primary-800">
-              Figures are pulled live from the reporting service. Use refresh to sync the latest ticket and draw activity.
-            </p>
-          </div>
+           
         </section>
       </div>
     </div>
