@@ -119,12 +119,13 @@ export interface Ticket extends BaseEntityModel {
     entryFee: string;
     quantity: string;
     colourName: string;
+    selectedOptionName?: string;
     totalAmount: string;
     paymentReference: string;
     paymentStatus: string;
     paymentMethod: string;
     customerPhone: string;
-    
+
 }
 
 
