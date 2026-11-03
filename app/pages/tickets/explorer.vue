@@ -111,14 +111,11 @@ const exportTickets = async () => {
             'Customer Phone',
             'Purchase Date',
             'Selected Option',
-            'Colour',
             'Quantity',
             'Amount (GHS)',
             'Payment Status',
             'Payment Method',
             'Payment Reference',
-            'Draw ID',
-            'Customer ID',
         ];
 
         const rows = tickets.map((ticket) => [
@@ -126,15 +123,12 @@ const exportTickets = async () => {
             ticket.ticketAlias,
             ticket.customerPhone,
             ticket.createdAt,
-            ticket.selectedOptionName ?? ticket.colourName,
-            ticket.colourName,
+            ticket.selectedOptionName,
             ticket.quantity,
             ticket.totalAmount,
             getStatusText(ticket.paymentStatus),
             ticket.paymentMethod,
             ticket.paymentReference,
-            ticket.drawId,
-            ticket.customerId,
         ]);
 
         const csv = [headers, ...rows]
