@@ -9,51 +9,126 @@ import {
   CheckIcon,
   CloudArrowUpIcon
 } from '@heroicons/vue/24/outline';
-
+import type { HeroSlider } from "~/models";
 // Define the slide type based on the DB schema
-interface HeroSlide {
-  id: string;
-  headline: string;
-  copy: string;
-  image_url: string;
-  cta_primary: string;
-  cta_secondary: string;
-  display_order: number;
-  is_active: boolean;
-  created_at: string;
-}
-
-// Mock data (replace with actual API fetch later)
-const slides = ref<HeroSlide[]>([
-  {
-    id: '1',
-    headline: 'Win Big This Friday!',
-    copy: 'Join the ultimate raffle experience. Over GHS 50,000 in prizes to be won.',
-    image_url: 'https://images.unsplash.com/photo-1518183214770-9c67425170d1?q=80&w=2000&auto=format&fit=crop',
-    cta_primary: 'Play Now',
-    cta_secondary: 'Learn More',
-    display_order: 1,
-    is_active: true,
-    created_at: new Date().toISOString()
-  }
-]);
 
 const isModalOpen = ref(false);
 const isDeleteModalOpen = ref(false);
-const editingSlide = ref<HeroSlide | null>(null);
+const editingSlide = ref<HeroSlider | null>(null);
 const slideToDelete = ref<string | null>(null);
 
 const isDragging = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 
+
+  useHead({
+  title: 'Colours | NSAA BO'
+})
+
+
+const router = useRouter();
+const route = useRoute();
+
+const filters = reactive({
+  query: '',
+  pageNo: 1,
+  pageSize: 10,
+
+});
+
+const paginationParams = reactive({
+  totalPages: 0,
+  totalCount: 0,
+  lowerBound: 0,
+  upperBound: 0
+});
+
+
+const heroSliderList = ref<HeroSlider[]>([]);
+
+const isShimmerLoading = ref(true);
+
+const onPageChange = async (pageNumber: number) => {
+
+	filters.pageNo = pageNumber;
+	const filteredQuery = filterQueryParams({ ...route.query, ...filters });
+
+	router.replace({ name: route.name ?? '', query: filteredQuery });
+    await getPaginatedHeroSliders()
+}
+
+const getPaginatedHeroSliders = async () => {
+
+    isShimmerLoading.value = true;
+
+    try {
+
+        let result = await createHeroSlider(filters);
+
+        heroSliderList.value = result.data;
+
+        paginationParams.totalPages = result.totalPages;
+        paginationParams.totalCount = result.totalCount;
+        paginationParams.lowerBound = result.lowerBound;
+        paginationParams.upperBound = result.upperBound;
+
+    } catch (error) {
+        toast.error('Unable to fetch hero sliders !');
+    } finally {
+        isShimmerLoading.value = false;
+    }
+
+ }
+
+const isSaving = ref(false);
+
+
+const saveSlider = async () => {
+  if (!form.value.name || !form.value.code) {
+    toast.error('Color name and code are required');
+    return;
+  }
+
+  isSaving.value = true;
+  try {
+    const payload = { ...form.value };
+    
+    if (slideToDelete.value) {
+      (payload as any).id = slideToDelete.value;
+    }
+
+    let isSuccessful = false;
+    if (editingColor.value) {
+      isSuccessful = await updateColour(payload, slideToDelete.value);
+    } else {
+      isSuccessful = await createColour(payload);
+    }
+
+    if (isSuccessful) {
+      closeModal();
+      toast.success(editingColor.value ? 'Slider updated successfully' : 'Slider created successfully');
+      getPaginatedHeroSliders();
+    } else {
+      toast.error('Operation failed');
+    }
+  } catch (error) {
+    console.error(error);
+    toast.error('An error occurred while saving the slider');
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+
+
+
 const form = ref({
   headline: '',
   copy: '',
-  image_url: '',
-  cta_primary: '',
-  cta_secondary: '',
-  display_order: 0,
-  is_active: false
+  ctaPrimary: '',
+  ctaSecondary: '',
+  displayOrder: 0,
+  isActive: false
 });
 
 const openCreateModal = () => {
@@ -61,11 +136,10 @@ const openCreateModal = () => {
   form.value = {
     headline: '',
     copy: '',
-    image_url: '',
-    cta_primary: '',
-    cta_secondary: '',
-    display_order: slides.value.length + 1,
-    is_active: true
+    ctaPrimary: '',
+    ctaSecondary: '',
+    displayOrder: slides.value.length + 1,
+    isActive: true
   };
   isModalOpen.value = true;
 };
@@ -85,12 +159,22 @@ const confirmDelete = (id: string) => {
   isDeleteModalOpen.value = true;
 };
 
-const handleDelete = () => {
-  if (slideToDelete.value) {
-    slides.value = slides.value.filter(s => s.id !== slideToDelete.value);
+const confirmDelete = async () => {
+  isDeletingColor.value = true;
+  try {
+    const isSuccessful = await deleteColour({ id: colorIdToDelete.value });
+    if (isSuccessful) {
+      toast.success('Sliders deleted successfully');
+      getPaginatedHeroSliders();
+      isDeleteModalOpen.value = false;
+    } else {
+      toast.error('Failed to delete sliders');
+    }
+  } catch (error) {
+    toast.error('An error occurred while deleting slider');
+  } finally {
+    isDeletingColor.value = false;
   }
-  isDeleteModalOpen.value = false;
-  slideToDelete.value = null;
 };
 
 const handleDragOver = (e: DragEvent) => {
@@ -127,21 +211,22 @@ const triggerFileInput = () => {
   fileInput.value?.click();
 };
 
-const saveSlide = () => {
-  if (editingSlide.value) {
-    const index = slides.value.findIndex(s => s.id === editingSlide.value!.id);
-    if (index !== -1) {
-      slides.value[index] = { ...editingSlide.value, ...form.value };
+const debouncedSearch = debounce(() => {
+    filters.pageNo = 1; // Reset to first page for new search
+    getPaginatedColours();
+  }, 300); // 300ms delay
+
+
+  watch(() => filters.query, debouncedSearch);
+
+  onMounted(async () => {
+    if (!isEmpty(route.query)) {
+      filters.pageNo = parseInt(route.query.pageNo as string);
     }
-  } else {
-    slides.value.push({
-      id: crypto.randomUUID(),
-      ...form.value,
-      created_at: new Date().toISOString()
-    });
-  }
-  closeModal();
-};
+    
+    await getPaginatedColours();
+
+  });
 </script>
 
 <template>

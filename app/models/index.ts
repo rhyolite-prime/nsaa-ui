@@ -147,6 +147,20 @@ export interface Raffle extends BaseEntityModel {
     exemptedPartners?: string[];
 }
 
+export interface HeroSlider extends BaseEntityModel {
+
+    headline: string;
+    copy: string;
+    imageUrl: number;
+    ctaPrimary: number;
+    ctaSecondary: number;
+    displayOrder: number;
+    isActive: boolean;
+    createdAt: string;
+}
+
+
+
 
 export interface RaffleDrawDetails extends BaseEntityModel {
 
