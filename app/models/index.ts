@@ -151,12 +151,29 @@ export interface HeroSlider extends BaseEntityModel {
 
     headline: string;
     copy: string;
-    imageUrl: number;
-    ctaPrimary: number;
-    ctaSecondary: number;
+    imageUrl: string;
+    ctaPrimary: string;
+    ctaSecondary: string;
     displayOrder: number;
     isActive: boolean;
     createdAt: string;
+    updatedAt?: string | null;
+}
+
+/**
+ * The editable fields of a hero slider.
+ *
+ * They are submitted as multipart/form-data together with the `image` file
+ * attachment, the api owns the resulting `imageUrl` so it is not part of it.
+ */
+export interface HeroSliderForm {
+
+    headline: string;
+    copy: string;
+    ctaPrimary: string;
+    ctaSecondary: string;
+    displayOrder: number;
+    isActive: boolean;
 }
 
 
